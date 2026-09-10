@@ -1,0 +1,26 @@
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Extension packages (keep in release folder only)
+*.vsix
+
+# Project-specific ignores
+ejemplos-vscode/ai-ignore-helper-main
+mi-necesidad.txt
+
+# Logs
+*.log
+
+# Dependencies
+node_modules/
+
+# Skills storage
+skills-remotas/
+skills-propias/

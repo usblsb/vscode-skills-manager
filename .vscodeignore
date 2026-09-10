@@ -1,0 +1,13 @@
+.vscode/**
+.vscode-test/**
+ejemplos-vscode/**
+pendientes-de-hacer/**
+mi-necesidad.txt
+test/**
+scripts/**
+.git/**
+.gitignore
+.DS_Store
+release/**
+skills-remotas/**
+skills-propias/**

@@ -1,0 +1,275 @@
+{
+  "name": "vscode-skills-manager",
+  "displayName": "Gestor de Skills IA",
+  "description": "Explora, gestiona, crea y sincroniza habilidades (@skills) para agentes de IA con catálogo y favoritas",
+  "version": "1.1.1",
+  "icon": "media/icon.png",
+  "publisher": "usblsb",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other",
+    "Machine Learning"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usblsb/vscode-skills-manager"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "skills-manager-container",
+          "title": "Skills IA",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "skills-manager-container": [
+        {
+          "id": "skills-manager-tree",
+          "name": "Habilidades Disponibles"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "skills-manager.buscar",
+        "title": "Buscar y copiar Skill (@skill)",
+        "category": "Skills IA",
+        "icon": "$(search)"
+      },
+      {
+        "command": "skills-manager.recargar",
+        "title": "Recargar lista de Skills",
+        "category": "Skills IA",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "skills-manager.sincronizar",
+        "title": "Sincronizar Skills desde GitHub",
+        "category": "Skills IA",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "skills-manager.ocultarInactivas",
+        "title": "Ocultar habilidades inactivas",
+        "category": "Skills IA",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "skills-manager.mostrarInactivas",
+        "title": "Mostrar habilidades inactivas",
+        "category": "Skills IA",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "skills-manager.marcarFavorita",
+        "title": "Marcar como favorita",
+        "category": "Skills IA",
+        "icon": "$(star-empty)"
+      },
+      {
+        "command": "skills-manager.desmarcarFavorita",
+        "title": "Quitar de favoritas",
+        "category": "Skills IA",
+        "icon": "$(star-full)"
+      },
+      {
+        "command": "skills-manager.abrirSkill",
+        "title": "Ver documentacion (SKILL.md)",
+        "category": "Skills IA",
+        "icon": "$(file-text)"
+      },
+      {
+        "command": "skills-manager.copiarMencion",
+        "title": "Copiar @mencion de la Skill",
+        "category": "Skills IA",
+        "icon": "$(clippy)"
+      },
+      {
+        "command": "skills-manager.desactivarSkill",
+        "title": "Desactivar habilidad",
+        "category": "Skills IA",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "skills-manager.activarSkill",
+        "title": "Activar habilidad",
+        "category": "Skills IA",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "skills-manager.copiarRuta",
+        "title": "Copiar ruta de la carpeta",
+        "category": "Skills IA",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "skills-manager.crearSkill",
+        "title": "Crear nueva habilidad",
+        "category": "Skills IA",
+        "icon": "$(add)"
+      },
+      {
+        "command": "skills-manager.instalarSkill",
+        "title": "Añadir a mis habilidades",
+        "category": "Skills IA",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "skills-manager.eliminarSkill",
+        "title": "Eliminar habilidad",
+        "category": "Skills IA",
+        "icon": "$(trash)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "skills-manager.buscar",
+        "key": "ctrl+shift+k",
+        "mac": "cmd+shift+k"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "skills-manager.crearSkill",
+          "when": "view == skills-manager-tree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "skills-manager.buscar",
+          "when": "view == skills-manager-tree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "skills-manager.ocultarInactivas",
+          "when": "view == skills-manager-tree && !skillsManager.ocultarInactivas",
+          "group": "navigation@3"
+        },
+        {
+          "command": "skills-manager.mostrarInactivas",
+          "when": "view == skills-manager-tree && skillsManager.ocultarInactivas",
+          "group": "navigation@3"
+        },
+        {
+          "command": "skills-manager.recargar",
+          "when": "view == skills-manager-tree",
+          "group": "navigation@4"
+        },
+        {
+          "command": "skills-manager.sincronizar",
+          "when": "view == skills-manager-tree",
+          "group": "navigation@5"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "skills-manager.instalarSkill",
+          "when": "view == skills-manager-tree && viewItem =~ /^skillItem_catalogo/",
+          "group": "inline@1"
+        },
+        {
+          "command": "skills-manager.marcarFavorita",
+          "when": "view == skills-manager-tree && viewItem =~ /_nofav_/",
+          "group": "inline@2"
+        },
+        {
+          "command": "skills-manager.desmarcarFavorita",
+          "when": "view == skills-manager-tree && viewItem =~ /_fav_/",
+          "group": "inline@2"
+        },
+        {
+          "command": "skills-manager.copiarMencion",
+          "when": "view == skills-manager-tree && viewItem =~ /^skillItem/",
+          "group": "inline@3"
+        },
+        {
+          "command": "skills-manager.abrirSkill",
+          "when": "view == skills-manager-tree && viewItem =~ /^skillItem/",
+          "group": "inline@4"
+        },
+        {
+          "command": "skills-manager.eliminarSkill",
+          "when": "view == skills-manager-tree && (viewItem =~ /^skillItem_propia/ || viewItem =~ /^skillItem_workspace/)",
+          "group": "inline@5"
+        },
+        {
+          "command": "skills-manager.desactivarSkill",
+          "when": "view == skills-manager-tree && viewItem =~ /_activa$/",
+          "group": "1_state@1"
+        },
+        {
+          "command": "skills-manager.activarSkill",
+          "when": "view == skills-manager-tree && viewItem =~ /_inactiva$/",
+          "group": "1_state@1"
+        },
+        {
+          "command": "skills-manager.copiarRuta",
+          "when": "view == skills-manager-tree && viewItem =~ /^skillItem/",
+          "group": "2_paths@1"
+        },
+        {
+          "command": "skills-manager.eliminarSkill",
+          "when": "view == skills-manager-tree && (viewItem =~ /^skillItem_propia/ || viewItem =~ /^skillItem_workspace/)",
+          "group": "3_danger@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Gestor de Skills IA",
+      "properties": {
+        "skillsManager.ownSkillsPath": {
+          "type": "string",
+          "default": "skills-propias",
+          "description": "Carpeta donde se guardan tus habilidades en uso (relativa al proyecto o ruta absoluta)."
+        },
+        "skillsManager.remoteSkillsPath": {
+          "type": "string",
+          "default": "skills-remotas",
+          "description": "Carpeta donde se sincroniza el catálogo remoto de GitHub (relativa al proyecto o ruta absoluta)."
+        },
+        "skillsManager.githubRepoUrl": {
+          "type": "string",
+          "default": "https://github.com/davidondrej/skills.git",
+          "description": "URL del repositorio GitHub para sincronizar las skills del catálogo remoto."
+        },
+        "skillsManager.workspaceFolders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".agent/skills",
+            ".agents/skills",
+            ".gemini/skills",
+            ".claude/skills"
+          ],
+          "description": "Carpetas relativas dentro del espacio de trabajo donde buscar skills locales."
+        },
+        "skillsManager.mentionPrefix": {
+          "type": "string",
+          "default": "@",
+          "description": "Prefijo utilizado al copiar el identificador de la skill (por defecto '@')."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "node -e 'console.log(\"Sintaxis OK\")'",
+    "test": "node test/test_loader.js && node test/test_state.js && node test/test_tree_and_quickpick.js && node test/test_actions.js",
+    "package": "node scripts/package.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0"
+  }
+}
