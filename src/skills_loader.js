@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
+const os = require('os');
 let vscode;
 try {
   vscode = require('vscode');
@@ -15,13 +16,27 @@ try {
 }
 
 /**
+ * Expande el caracter tilde ~ al directorio home del usuario.
+ * @param {string} ruta
+ * @returns {string}
+ */
+function expandirTilde(ruta) {
+  if (!ruta) return ruta;
+  if (ruta.startsWith('~')) {
+    return path.join(os.homedir(), ruta.slice(1));
+  }
+  return ruta;
+}
+
+/**
  * Resuelve una ruta que puede ser absoluta o relativa a la raiz del proyecto abierto.
  * @param {string} rutaConfigurada
  * @param {string} rutaDefecto
  * @returns {string}
  */
 function resolverRuta(rutaConfigurada, rutaDefecto) {
-  const ruta = rutaConfigurada || rutaDefecto;
+  let ruta = rutaConfigurada || rutaDefecto;
+  ruta = expandirTilde(ruta);
   if (path.isAbsolute(ruta)) {
     return ruta;
   }
@@ -33,13 +48,23 @@ function resolverRuta(rutaConfigurada, rutaDefecto) {
 }
 
 /**
- * Obtiene la ruta absoluta de las skills propias en uso.
+ * Obtiene la ruta absoluta de las skills propias o de proyecto.
  * @returns {string}
  */
 function resolverRutaPropia() {
   const config = vscode.workspace.getConfiguration('skillsManager');
-  const rutaConfig = config.get('ownSkillsPath', 'skills-propias');
-  return resolverRuta(rutaConfig, 'skills-propias');
+  const rutaConfig = config.get('ownSkillsPath', '.agents/skills');
+  return resolverRuta(rutaConfig, '.agents/skills');
+}
+
+/**
+ * Obtiene la ruta absoluta de las skills globales del sistema.
+ * @returns {string}
+ */
+function resolverRutaGlobal() {
+  const config = vscode.workspace.getConfiguration('skillsManager');
+  const rutaConfig = config.get('globalSkillsPath', '~/.agents/skills');
+  return expandirTilde(rutaConfig || '~/.agents/skills');
 }
 
 /**
@@ -48,8 +73,18 @@ function resolverRutaPropia() {
  */
 function resolverRutaRemota() {
   const config = vscode.workspace.getConfiguration('skillsManager');
-  const rutaConfig = config.get('remoteSkillsPath') || config.get('globalSkillsPath', 'skills-remotas');
+  const rutaConfig = config.get('remoteSkillsPath', 'skills-remotas');
   return resolverRuta(rutaConfig, 'skills-remotas');
+}
+
+/**
+ * Obtiene la ruta absoluta de la carpeta baul/backup de habilidades.
+ * @returns {string}
+ */
+function resolverRutaBackup() {
+  const config = vscode.workspace.getConfiguration('skillsManager');
+  const rutaConfig = config.get('backupSkillsPath', '~/.skills-backup');
+  return expandirTilde(rutaConfig || '~/.skills-backup');
 }
 
 /**
@@ -111,17 +146,18 @@ async function procesarArchivoSkill(rutaSkillMd, categoria, origen, esCatalogo =
     const metadatos = extraerFrontmatter(contenido);
 
     const nombre = metadatos.name || nombreCarpeta;
-    const descripcion = metadatos.description || 'Sin descripción disponible.';
+    const descripcion = metadatos.description || 'Sin descripcion disponible.';
+    const categoriaFinal = metadatos.category || categoria || 'General';
 
     const config = vscode.workspace.getConfiguration('skillsManager');
-    const prefijo = config.get('mentionPrefix', '@');
+    const prefijo = config.get('mentionPrefix', '/');
     const comandoMencion = `${prefijo}${nombre}`;
 
     return {
-      id: `${origen}:${categoria}:${nombre}`,
+      id: `${origen}:${categoriaFinal}:${nombre}`,
       nombre,
       descripcion,
-      categoria: categoria || 'General',
+      categoria: categoriaFinal,
       origen,
       esCatalogo,
       rutaCarpeta: carpetaSkill,
@@ -223,54 +259,90 @@ async function escanearDirectorio(directorioBase, origen, esCatalogo = false, pr
 
 /**
  * Carga todas las skills clasificadas por origen:
- * - propias: Habilidades personales y en uso (en ./skills-propias)
+ * - propias: Habilidades personales y en uso (en .agents/skills o configurada)
+ * - globales: Habilidades globales de maquina (~/.gemini/config/skills)
  * - catalogo: Repositorio remoto de GitHub (en ./skills-remotas)
  * - workspace: Habilidades detectadas en carpetas locales (.agent/skills, etc.)
- * @returns {Promise<{ propias: Array<object>, catalogo: Array<object>, workspace: Array<object>, todas: Array<object> }>}
+ * @returns {Promise<{ propias: Array<object>, globales: Array<object>, catalogo: Array<object>, workspace: Array<object>, todas: Array<object> }>}
  */
 async function cargarTodasLasSkills() {
   const rutaPropias = resolverRutaPropia();
+  const rutaGlobal = resolverRutaGlobal();
   const rutaRemota = resolverRutaRemota();
+  const rutaBackup = resolverRutaBackup();
 
   const config = vscode.workspace.getConfiguration('skillsManager');
   const carpetasWorkspace = config.get('workspaceFolders', [
-    '.agent/skills',
     '.agents/skills',
+    '.agent/skills',
     '.gemini/skills',
     '.claude/skills'
   ]);
 
   let skillsPropias = [];
+  let skillsGlobales = [];
   let skillsCatalogo = [];
   let skillsWorkspace = [];
+  let skillsBackup = [];
 
-  // 1. Cargar Skills Propias (En Uso)
+  // 1. Cargar Skills Propias (Workspace o configurada)
   try {
     const statsPropias = await fs.stat(rutaPropias);
     if (statsPropias.isDirectory()) {
       skillsPropias = await escanearDirectorio(rutaPropias, 'Propia', false);
     }
   } catch (error) {
-    // La carpeta aún no existe
+    // La carpeta aun no existe
   }
 
-  // 2. Cargar Catálogo Remoto (GitHub)
+  // 2. Cargar Skills Globales de la maquina (universal y especificas de IDEs)
+  const carpetasGlobalesConfig = config.get('globalSearchFolders', [
+    '~/.agents/skills',
+    '~/.gemini/config/skills',
+    '~/.claude/skills',
+    '~/.cursor/skills'
+  ]);
+  const listaRutasGlobales = Array.from(
+    new Set([rutaGlobal, ...carpetasGlobalesConfig])
+  ).map((r) => expandirTilde(r));
+
+  const rutasGlobalesEscaneadas = new Set();
+  for (const dirGlobal of listaRutasGlobales) {
+    const rutaNorm = path.resolve(dirGlobal);
+    if (rutasGlobalesEscaneadas.has(rutaNorm)) continue;
+    rutasGlobalesEscaneadas.add(rutaNorm);
+
+    try {
+      const statsGlobal = await fs.stat(rutaNorm);
+      if (statsGlobal.isDirectory()) {
+        const skillsDeRuta = await escanearDirectorio(rutaNorm, 'Global', false);
+        skillsGlobales.push(...skillsDeRuta);
+      }
+    } catch (error) {
+      // La carpeta global no existe o no es accesible
+    }
+  }
+
+  // 3. Cargar Catalogo Remoto (GitHub)
   try {
     const statsRemota = await fs.stat(rutaRemota);
     if (statsRemota.isDirectory()) {
-      skillsCatalogo = await escanearDirectorio(rutaRemota, 'Catálogo Remoto', true);
+      skillsCatalogo = await escanearDirectorio(rutaRemota, 'Catalogo Remoto', true);
     }
   } catch (error) {
-    // La carpeta de catálogo aún no se ha clonado
+    // La carpeta de catalogo aun no se ha clonado
   }
 
-  // 3. Cargar Skills del Workspace actual
+  // 4. Cargar Skills del Workspace actual
   const carpetasActivas = vscode.workspace.workspaceFolders || [];
   for (const carpetaTrabajo of carpetasActivas) {
     const raizWorkspace = carpetaTrabajo.uri.fsPath;
 
     for (const relDir of carpetasWorkspace) {
       const rutaAbsoluta = path.join(raizWorkspace, relDir);
+      if (path.resolve(rutaAbsoluta) === path.resolve(rutaPropias)) {
+        continue;
+      }
       try {
         const stats = await fs.stat(rutaAbsoluta);
         if (stats.isDirectory()) {
@@ -287,11 +359,24 @@ async function cargarTodasLasSkills() {
     }
   }
 
-  // Lista combinada única para el buscador rápido QuickPick
+  // 5. Cargar Skills del Baul de Backup
+  try {
+    const statsBackup = await fs.stat(rutaBackup);
+    if (statsBackup.isDirectory()) {
+      skillsBackup = await escanearDirectorio(rutaBackup, 'Backup', false);
+      for (const s of skillsBackup) {
+        s.esBackup = true;
+      }
+    }
+  } catch (error) {
+    // La carpeta de backup aun no existe
+  }
+
+  // Lista combinada unica para el buscador rapido QuickPick
   const mapaUnico = new Map();
   const todas = [];
 
-  for (const s of [...skillsPropias, ...skillsWorkspace, ...skillsCatalogo]) {
+  for (const s of [...skillsPropias, ...skillsGlobales, ...skillsWorkspace, ...skillsCatalogo, ...skillsBackup]) {
     if (!mapaUnico.has(s.id)) {
       mapaUnico.set(s.id, s);
       todas.push(s);
@@ -300,8 +385,10 @@ async function cargarTodasLasSkills() {
 
   return {
     propias: skillsPropias,
+    globales: skillsGlobales,
     catalogo: skillsCatalogo,
     workspace: skillsWorkspace,
+    backup: skillsBackup,
     todas
   };
 }
@@ -309,8 +396,11 @@ async function cargarTodasLasSkills() {
 module.exports = {
   cargarTodasLasSkills,
   resolverRutaPropia,
+  resolverRutaGlobal,
   resolverRutaRemota,
+  resolverRutaBackup,
   extraerFrontmatter,
   procesarArchivoSkill,
-  escanearDirectorio
+  escanearDirectorio,
+  expandirTilde
 };

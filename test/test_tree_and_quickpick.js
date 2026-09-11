@@ -76,5 +76,20 @@ console.log('--- Iniciando pruebas de integracion de SkillsTreeProvider ---');
   assert.strictEqual(skillsCatalogo[0].contextValue.startsWith('skillItem_catalogo'), true);
   console.log('Prueba 4 superada: seccion Catalogo Remoto renderizada correctamente.');
 
+  // 5. Grupo Baul de Referencia
+  provider.datosSkills.backup = [
+    { id: 'Backup:utilidades:skill-backup-1', nombre: 'skill-backup-1', categoria: 'utilidades', origen: 'Backup', esBackup: true, comandoMencion: '@skill-backup-1' }
+  ];
+  const raiz4 = await provider.getChildren();
+  const itemBackup = raiz4.find(i => i.tipo === 'grupoBackup');
+  assert.ok(itemBackup, 'Debe existir el grupo Baul de Referencia');
+  assert.ok(itemBackup.label.includes('Baúl de Referencia'));
+  const catsBackup = await provider.getChildren(itemBackup);
+  assert.strictEqual(catsBackup.length, 1);
+  const skillsBackup = await provider.getChildren(catsBackup[0]);
+  assert.strictEqual(skillsBackup.length, 1);
+  assert.strictEqual(skillsBackup[0].contextValue.startsWith('skillItem_backup'), true);
+  console.log('Prueba 5 superada: seccion Baul de Referencia renderizada correctamente con items de backup.');
+
   console.log('--- Todas las pruebas de arbol pasaron satisfactoriamente! ---');
 })();

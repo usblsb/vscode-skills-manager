@@ -1,5 +1,12 @@
 const assert = require('assert');
-const { extraerFrontmatter } = require('../src/skills_loader');
+const {
+  extraerFrontmatter,
+  resolverRutaPropia,
+  resolverRutaGlobal,
+  resolverRutaBackup,
+  cargarTodasLasSkills,
+  procesarArchivoSkill
+} = require('../src/skills_loader');
 
 console.log('--- Iniciando pruebas unitarias de skills_loader ---');
 
@@ -70,7 +77,7 @@ description: Habilidad creada en directorio temporal para probar el escaner.
   assert.strictEqual(skillsDetectadas.length, 1, 'Debe encontrar 1 skill');
   assert.strictEqual(skillsDetectadas[0].nombre, 'mi-skill');
   assert.strictEqual(skillsDetectadas[0].categoria, 'categoria-test');
-  assert.strictEqual(skillsDetectadas[0].comandoMencion, '@mi-skill');
+  assert.strictEqual(skillsDetectadas[0].comandoMencion, '/mi-skill');
 
   // Limpiar
   await fs.rm(dirTemp, { recursive: true, force: true });
@@ -105,5 +112,40 @@ description: Habilidad creada en directorio temporal para probar el escaner.
 
   await fs.rm(dirTemp2, { recursive: true, force: true });
   console.log('Prueba 5 superada: omision de backups y resolucion de categoria tematica.');
+
+  // 6. Prueba de rutas estandar y soporte de categoria en frontmatter
+  const rutaGlobal = resolverRutaGlobal();
+  assert.ok(rutaGlobal.includes('.agents') || rutaGlobal.includes('skills'), 'Ruta global universal debe apuntar a carpeta de skills');
+  assert.ok(!rutaGlobal.startsWith('~'), 'La tilde ~ debe haberse expandido');
+
+  const rutaPropia = resolverRutaPropia();
+  assert.ok(rutaPropia.includes('.agents'), 'Ruta propia por defecto debe incluir .agents/skills');
+
+  const dirSkillTest = await fs.mkdtemp(path.join(os.tmpdir(), 'skill-cat-test-'));
+  const archivoSkillMd = path.join(dirSkillTest, 'SKILL.md');
+  await fs.writeFile(
+    archivoSkillMd,
+    `---\nname: skill-cat-test\ndescription: Test con categoria.\ncategory: DevOps\n---\n# DevOps Skill\n`,
+    'utf8'
+  );
+
+  const resultadoSkill = await procesarArchivoSkill(archivoSkillMd, 'General', 'Test');
+  assert.strictEqual(resultadoSkill.categoria, 'DevOps', 'Debe tomar la categoria indicada en el frontmatter');
+  assert.strictEqual(resultadoSkill.comandoMencion, '/skill-cat-test', 'Debe usar prefijo slash /');
+
+  await fs.rm(dirSkillTest, { recursive: true, force: true });
+  console.log('Prueba 6 superada: resolucion de rutas estandar y categoria en frontmatter.');
+
+  // 7. Prueba de ruta del Baul de Backup y cargarTodasLasSkills
+  const rutaBackup = resolverRutaBackup();
+  assert.ok(rutaBackup.includes('.skills-backup'), 'Ruta de backup debe apuntar a .skills-backup');
+  assert.ok(!rutaBackup.startsWith('~'), 'La tilde ~ de ruta backup debe expandirse');
+
+  const resultadoCarga = await cargarTodasLasSkills();
+  assert.ok(Array.isArray(resultadoCarga.backup), 'cargarTodasLasSkills debe incluir array backup');
+  assert.ok(Array.isArray(resultadoCarga.propias), 'cargarTodasLasSkills debe incluir array propias');
+  assert.ok(Array.isArray(resultadoCarga.globales), 'cargarTodasLasSkills debe incluir array globales');
+  console.log('Prueba 7 superada: resolucion de baul de backup y estructura de retorno.');
+
   console.log('--- Todas las pruebas pasaron satisfactoriamente! ---');
 })();

@@ -48,6 +48,9 @@ class SkillTreeItem extends vscode.TreeItem {
     } else if (tipo === 'grupoPropias') {
       this.iconPath = new vscode.ThemeIcon('tools');
       this.contextValue = 'grupoPropias';
+    } else if (tipo === 'grupoBackup') {
+      this.iconPath = new vscode.ThemeIcon('archive');
+      this.contextValue = 'grupoBackup';
     } else if (tipo === 'grupoCatalogo') {
       this.iconPath = new vscode.ThemeIcon('cloud');
       this.contextValue = 'grupoCatalogo';
@@ -62,6 +65,7 @@ class SkillTreeItem extends vscode.TreeItem {
       const esFav = esFavorita(skill.id);
       const esInact = esInactiva(skill.id);
       const esCatalogo = Boolean(skill.esCatalogo);
+      const esBackup = Boolean(skill.esBackup);
 
       // Iconos y descriptores
       if (esFav) {
@@ -70,6 +74,9 @@ class SkillTreeItem extends vscode.TreeItem {
       } else if (esInact) {
         this.iconPath = new vscode.ThemeIcon('circle-slash');
         this.description = `${skill.comandoMencion}  (Inactiva)`;
+      } else if (esBackup) {
+        this.iconPath = new vscode.ThemeIcon('archive');
+        this.description = `${skill.comandoMencion}  (Baúl)`;
       } else if (esCatalogo) {
         this.iconPath = new vscode.ThemeIcon('package');
         this.description = skill.comandoMencion;
@@ -81,13 +88,18 @@ class SkillTreeItem extends vscode.TreeItem {
       // ContextValue para botones de accion dinamicos
       const sufijoFav = esFav ? 'fav' : 'nofav';
       const sufijoAct = esInact ? 'inactiva' : 'activa';
-      const prefijoTipo = esCatalogo ? 'skillItem_catalogo' : (skill.origen === 'Propia' ? 'skillItem_propia' : 'skillItem_workspace');
+      const prefijoTipo = esCatalogo
+        ? 'skillItem_catalogo'
+        : (esBackup
+            ? 'skillItem_backup'
+            : (skill.origen === 'Global' ? 'skillItem_global' : (skill.origen === 'Propia' ? 'skillItem_propia' : 'skillItem_workspace')));
       this.contextValue = `${prefijoTipo}_${sufijoFav}_${sufijoAct}`;
 
       // Informacion detallada en el tooltip
       const estadoTexto = esInact ? 'Inactiva' : 'Activa';
       const favoritaTexto = esFav ? ' | ⭐ Favorita' : '';
       const notaCatalogo = esCatalogo ? '\n\n*(Catálogo remoto: pulsa + para añadir a tus skills)*' : '';
+      const notaBackup = esBackup ? '\n\n*(Baúl de Referencia: puedes copiar a Local o Global)*' : '';
 
       this.tooltip = new vscode.MarkdownString(
         `### ${skill.nombre}\n\n` +
@@ -96,7 +108,7 @@ class SkillTreeItem extends vscode.TreeItem {
         `**Origen:** ${skill.origen}\n\n` +
         `**Estado:** ${estadoTexto}${favoritaTexto}\n\n` +
         `---\n\n` +
-        `${skill.descripcion}${notaCatalogo}\n\n` +
+        `${skill.descripcion}${notaCatalogo}${notaBackup}\n\n` +
         `*Haz clic para copiar la mención al portapapeles.*`
       );
       this.tooltip.isTrusted = true;
@@ -177,8 +189,12 @@ class SkillsTreeProvider {
         );
       }
 
-      // 2. Grupo Mis Habilidades (Unifica propias y de workspace)
-      const todasEnUso = [...(this.datosSkills.propias || []), ...(this.datosSkills.workspace || [])];
+      // 2. Grupo Mis Habilidades (Unifica propias, workspace y globales)
+      const todasEnUso = [
+        ...(this.datosSkills.propias || []),
+        ...(this.datosSkills.workspace || []),
+        ...(this.datosSkills.globales || [])
+      ];
       const mapaEnUso = new Map();
       for (const s of todasEnUso) {
         if (!mapaEnUso.has(s.id)) {
@@ -201,7 +217,21 @@ class SkillsTreeProvider {
         )
       );
 
-      // 3. Grupo Catálogo Remoto (GitHub)
+      // 3. Grupo Baúl de Referencia (Backup)
+      const backupVisibles = ocultarInactivas
+        ? (this.datosSkills.backup || []).filter((s) => !esInactiva(s.id))
+        : (this.datosSkills.backup || []);
+
+      items.push(
+        new SkillTreeItem(
+          `🗄️ Baúl de Referencia (${backupVisibles.length})`,
+          vscode.TreeItemCollapsibleState.Collapsed,
+          'grupoBackup',
+          { skills: backupVisibles }
+        )
+      );
+
+      // 4. Grupo Catálogo Remoto (GitHub)
       const catalogoVisibles = ocultarInactivas
         ? (this.datosSkills.catalogo || []).filter((s) => !esInactiva(s.id))
         : (this.datosSkills.catalogo || []);
@@ -234,8 +264,8 @@ class SkillsTreeProvider {
       );
     }
 
-    // Nivel 1: Categorias dentro de Propias, Catalogo o Workspace
-    if (['grupoPropias', 'grupoCatalogo', 'grupoWorkspace'].includes(element.tipo)) {
+    // Nivel 1: Categorias dentro de Propias, Baul, Catalogo o Workspace
+    if (['grupoPropias', 'grupoBackup', 'grupoCatalogo', 'grupoWorkspace'].includes(element.tipo)) {
       const skillsGrupo = element.datosExtra.skills || [];
 
       if (skillsGrupo.length === 0) {
@@ -246,6 +276,16 @@ class SkillsTreeProvider {
             'info'
           );
           itemVacio.iconPath = new vscode.ThemeIcon('info');
+          return [itemVacio];
+        }
+
+        if (element.tipo === 'grupoBackup') {
+          const itemVacio = new SkillTreeItem(
+            'Baúl vacío. Pulsa "Guardar en Baúl" en cualquier skill o copia carpetas a ~/.skills-backup.',
+            vscode.TreeItemCollapsibleState.None,
+            'info'
+          );
+          itemVacio.iconPath = new vscode.ThemeIcon('archive');
           return [itemVacio];
         }
 

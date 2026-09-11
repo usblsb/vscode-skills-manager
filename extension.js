@@ -12,7 +12,12 @@ const {
 const {
   instalarSkillDesdeCatalogo,
   eliminarSkill,
-  asistenteCrearNuevaSkill
+  asistenteCrearNuevaSkill,
+  consolidarSkillsGlobales,
+  copiarSkillALocal,
+  copiarSkillAGlobal,
+  copiarSkillABackup,
+  respaldarTodasLasSkillsEnBackup
 } = require('./src/skills_actions');
 
 /**
@@ -128,6 +133,46 @@ function activate(context) {
     await eliminarSkill(skill, () => treeProvider.recargar());
   });
 
+  // 10. Comando: Consolidar y sincronizar skills globales en espejo
+  const consolidarGlobalesCmd = vscode.commands.registerCommand('skills-manager.consolidarGlobales', async () => {
+    await consolidarSkillsGlobales(() => treeProvider.recargar());
+  });
+
+  // 11. Comando: Copiar habilidad a Local (Workspace)
+  const copiarALocalCmd = vscode.commands.registerCommand('skills-manager.copiarALocal', async (elemento) => {
+    const skill = obtenerObjetoSkill(elemento);
+    if (!skill) {
+      vscode.window.showErrorMessage('No se ha podido identificar la habilidad a copiar a Local.');
+      return;
+    }
+    await copiarSkillALocal(skill, () => treeProvider.recargar());
+  });
+
+  // 12. Comando: Copiar habilidad a Global (Universal)
+  const copiarAGlobalCmd = vscode.commands.registerCommand('skills-manager.copiarAGlobal', async (elemento) => {
+    const skill = obtenerObjetoSkill(elemento);
+    if (!skill) {
+      vscode.window.showErrorMessage('No se ha podido identificar la habilidad a copiar a Global.');
+      return;
+    }
+    await copiarSkillAGlobal(skill, () => treeProvider.recargar());
+  });
+
+  // 13. Comando: Guardar copia en el Baul de Referencia
+  const copiarABackupCmd = vscode.commands.registerCommand('skills-manager.copiarABackup', async (elemento) => {
+    const skill = obtenerObjetoSkill(elemento);
+    if (!skill) {
+      vscode.window.showErrorMessage('No se ha podido identificar la habilidad para guardar en el Baúl.');
+      return;
+    }
+    await copiarSkillABackup(skill, () => treeProvider.recargar());
+  });
+
+  // 14. Comando: Respaldar todas las habilidades activas en el Baul
+  const respaldarTodoCmd = vscode.commands.registerCommand('skills-manager.respaldarTodo', async () => {
+    await respaldarTodasLasSkillsEnBackup(() => treeProvider.recargar());
+  });
+
   // Manejador central de conmutar favorita
   const alternarFavoritaHandler = async (elemento) => {
     const skill = obtenerObjetoSkill(elemento);
@@ -206,6 +251,11 @@ function activate(context) {
     crearSkillCmd,
     instalarSkillCmd,
     eliminarSkillCmd,
+    consolidarGlobalesCmd,
+    copiarALocalCmd,
+    copiarAGlobalCmd,
+    copiarABackupCmd,
+    respaldarTodoCmd,
     conmutarFavoritaCmd,
     marcarFavoritaCmd,
     desmarcarFavoritaCmd,
