@@ -58,7 +58,14 @@ class SkillTreeItem extends vscode.TreeItem {
       this.iconPath = new vscode.ThemeIcon('folder-library');
       this.contextValue = 'grupoWorkspace';
     } else if (tipo === 'categoria') {
-      this.iconPath = new vscode.ThemeIcon('folder');
+      const nombreCat = datosExtra.categoria || '';
+      if (nombreCat === 'Global') {
+        this.iconPath = new vscode.ThemeIcon('globe');
+      } else if (nombreCat === 'Local') {
+        this.iconPath = new vscode.ThemeIcon('folder-active');
+      } else {
+        this.iconPath = new vscode.ThemeIcon('folder');
+      }
       this.contextValue = 'categoria';
     } else if (tipo === 'skill') {
       const skill = datosExtra.skill;
@@ -264,21 +271,97 @@ class SkillsTreeProvider {
       );
     }
 
-    // Nivel 1: Categorias dentro de Propias, Baul, Catalogo o Workspace
-    if (['grupoPropias', 'grupoBackup', 'grupoCatalogo', 'grupoWorkspace'].includes(element.tipo)) {
+    // Nivel 1: Contenido dentro de Mis Habilidades (grupoPropias)
+    if (element.tipo === 'grupoPropias') {
       const skillsGrupo = element.datosExtra.skills || [];
 
       if (skillsGrupo.length === 0) {
-        if (element.tipo === 'grupoPropias') {
-          const itemVacio = new SkillTreeItem(
-            'Sin habilidades en uso. Añade desde el catálogo (+) o pulsa "Nueva Skill".',
-            vscode.TreeItemCollapsibleState.None,
-            'info'
-          );
-          itemVacio.iconPath = new vscode.ThemeIcon('info');
-          return [itemVacio];
-        }
+        const itemVacio = new SkillTreeItem(
+          'Sin habilidades en uso. Añade desde el catálogo (+) o pulsa "Nueva Skill".',
+          vscode.TreeItemCollapsibleState.None,
+          'info'
+        );
+        itemVacio.iconPath = new vscode.ThemeIcon('info');
+        return [itemVacio];
+      }
 
+      // Separar habilidades locales de este proyecto
+      const skillsLocales = skillsGrupo.filter(
+        (s) => s.esLocal || s.origen === 'Propia' || (typeof s.origen === 'string' && s.origen.startsWith('Workspace')) || s.categoria === 'Local'
+      );
+
+      // Habilidades globales que no tienen subcategoria tematica especifica
+      const skillsGlobalesDefecto = skillsGrupo.filter(
+        (s) => !skillsLocales.includes(s) && (!s.categoria || s.categoria === 'Global' || s.categoria === 'General')
+      );
+
+      // Categorias tematicas adicionales (como toolchain, etc.)
+      const categoriasMap = new Map();
+      for (const skill of skillsGrupo) {
+        const cat = skill.categoria;
+        if (cat && cat !== 'Global' && cat !== 'General' && cat !== 'Local') {
+          if (!categoriasMap.has(cat)) {
+            categoriasMap.set(cat, []);
+          }
+          categoriasMap.get(cat).push(skill);
+        }
+      }
+
+      const items = [];
+
+      // 1. Nodo Global
+      items.push(
+        new SkillTreeItem(
+          `Global (${skillsGlobalesDefecto.length})`,
+          skillsGlobalesDefecto.length > 0
+            ? vscode.TreeItemCollapsibleState.Collapsed
+            : vscode.TreeItemCollapsibleState.None,
+          'categoria',
+          {
+            categoria: 'Global',
+            skills: skillsGlobalesDefecto
+          }
+        )
+      );
+
+      // 2. Nodo Local (Siempre visible para ver habilidades locales activas del proyecto)
+      items.push(
+        new SkillTreeItem(
+          `Local (${skillsLocales.length})`,
+          vscode.TreeItemCollapsibleState.Collapsed,
+          'categoria',
+          {
+            categoria: 'Local',
+            skills: skillsLocales
+          }
+        )
+      );
+
+      // 3. Demas categorias tematicas ordenadas
+      const categoriasOrdenadas = Array.from(categoriasMap.keys()).sort();
+      for (const cat of categoriasOrdenadas) {
+        const listaCat = categoriasMap.get(cat);
+        items.push(
+          new SkillTreeItem(
+            `${cat} (${listaCat.length})`,
+            vscode.TreeItemCollapsibleState.Collapsed,
+            'categoria',
+            {
+              categoria: cat,
+              skills: listaCat
+            }
+          )
+        );
+      }
+
+      return items;
+    }
+
+    // Nivel 1: Categorias dentro de Baul, Catalogo o Workspace
+    if (['grupoBackup', 'grupoCatalogo', 'grupoWorkspace'].includes(element.tipo)) {
+      const skillsGrupo = element.datosExtra.skills || [];
+
+      if (skillsGrupo.length === 0) {
         if (element.tipo === 'grupoBackup') {
           const itemVacio = new SkillTreeItem(
             'Baúl vacío. Pulsa "Guardar en Baúl" en cualquier skill o copia carpetas a ~/.skills-backup.',
@@ -312,10 +395,10 @@ class SkillsTreeProvider {
         return [itemVacio];
       }
 
-      // Agrupar por categoría
+      // Agrupar por categoria asignando Global por defecto en lugar de General
       const categoriasMap = new Map();
       for (const skill of skillsGrupo) {
-        const cat = skill.categoria || 'General';
+        const cat = (skill.categoria && skill.categoria !== 'General') ? skill.categoria : 'Global';
         if (!categoriasMap.has(cat)) {
           categoriasMap.set(cat, []);
         }
@@ -323,7 +406,11 @@ class SkillsTreeProvider {
       }
 
       const itemsCategorias = [];
-      const categoriasOrdenadas = Array.from(categoriasMap.keys()).sort();
+      const categoriasOrdenadas = Array.from(categoriasMap.keys()).sort((a, b) => {
+        if (a === 'Global') return -1;
+        if (b === 'Global') return 1;
+        return a.localeCompare(b);
+      });
 
       for (const cat of categoriasOrdenadas) {
         const listaCat = categoriasMap.get(cat);
@@ -345,6 +432,28 @@ class SkillsTreeProvider {
     // Nivel 2: Skills dentro de una categoria
     if (element.tipo === 'categoria') {
       const listaSkills = element.datosExtra.skills || [];
+
+      if (listaSkills.length === 0) {
+        if (element.datosExtra.categoria === 'Local') {
+          const itemVacio = new SkillTreeItem(
+            'Sin habilidades en este proyecto. Pulsa el botón "Copiar a Local" en cualquier habilidad.',
+            vscode.TreeItemCollapsibleState.None,
+            'info'
+          );
+          itemVacio.iconPath = new vscode.ThemeIcon('info');
+          return [itemVacio];
+        }
+        if (element.datosExtra.categoria === 'Global') {
+          const itemVacio = new SkillTreeItem(
+            'Sin habilidades globales instaladas.',
+            vscode.TreeItemCollapsibleState.None,
+            'info'
+          );
+          itemVacio.iconPath = new vscode.ThemeIcon('info');
+          return [itemVacio];
+        }
+      }
+
       listaSkills.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
       return listaSkills.map(

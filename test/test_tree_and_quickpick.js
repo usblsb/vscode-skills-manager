@@ -91,5 +91,53 @@ console.log('--- Iniciando pruebas de integracion de SkillsTreeProvider ---');
   assert.strictEqual(skillsBackup[0].contextValue.startsWith('skillItem_backup'), true);
   console.log('Prueba 5 superada: seccion Baul de Referencia renderizada correctamente con items de backup.');
 
+  // 6. Prueba de desglose Global y Local en Mis Habilidades
+  provider.datosSkills = {
+    propias: [],
+    workspace: [],
+    globales: [
+      { id: 'Global:Global:g1', nombre: 'g1', categoria: 'Global', origen: 'Global', comandoMencion: '@g1' },
+      { id: 'Global:toolchain:t1', nombre: 't1', categoria: 'toolchain', origen: 'Global', comandoMencion: '@t1' }
+    ],
+    backup: [
+      { id: 'Backup:General:b1', nombre: 'b1', categoria: 'General', origen: 'Backup', esBackup: true, comandoMencion: '@b1' },
+      { id: 'Backup:toolchain:b2', nombre: 'b2', categoria: 'toolchain', origen: 'Backup', esBackup: true, comandoMencion: '@b2' }
+    ],
+    catalogo: [],
+    todas: []
+  };
+
+  const raiz5 = await provider.getChildren();
+  const itemPropias5 = raiz5.find(i => i.tipo === 'grupoPropias');
+  const hijosPropias5 = await provider.getChildren(itemPropias5);
+
+  const nodoGlobal = hijosPropias5.find(h => h.datosExtra && h.datosExtra.categoria === 'Global');
+  const nodoLocal = hijosPropias5.find(h => h.datosExtra && h.datosExtra.categoria === 'Local');
+  const nodoToolchain = hijosPropias5.find(h => h.datosExtra && h.datosExtra.categoria === 'toolchain');
+
+  assert.ok(nodoGlobal, 'Debe existir el nodo Global en Mis Habilidades');
+  assert.strictEqual(nodoGlobal.label, 'Global (1)');
+  assert.ok(nodoLocal, 'Debe existir el nodo Local en Mis Habilidades');
+  assert.strictEqual(nodoLocal.label, 'Local (0)');
+  assert.ok(nodoToolchain, 'Debe existir el nodo toolchain en Mis Habilidades');
+  assert.strictEqual(nodoToolchain.label, 'toolchain (1)');
+  console.log('Prueba 6 superada: desglose Global, Local y toolchain en Mis Habilidades.');
+
+  // 7. Prueba de nodo Local vacio con mensaje orientativo
+  const hijosLocalVacio = await provider.getChildren(nodoLocal);
+  assert.strictEqual(hijosLocalVacio.length, 1);
+  assert.strictEqual(hijosLocalVacio[0].tipo, 'info');
+  assert.ok(hijosLocalVacio[0].label.includes('Sin habilidades en este proyecto'));
+  console.log('Prueba 7 superada: nodo Local vacio informa correctamente.');
+
+  // 8. Prueba de Baul con Global en lugar de General
+  const itemBackup5 = raiz5.find(i => i.tipo === 'grupoBackup');
+  const hijosBackup5 = await provider.getChildren(itemBackup5);
+  const backupGlobal = hijosBackup5.find(h => h.datosExtra && h.datosExtra.categoria === 'Global');
+  const backupGeneral = hijosBackup5.find(h => h.datosExtra && h.datosExtra.categoria === 'General');
+  assert.ok(backupGlobal, 'Baul debe tener categoria Global');
+  assert.strictEqual(backupGeneral, undefined, 'Baul no debe mostrar categoria General');
+  console.log('Prueba 8 superada: Baul agrupa bajo Global y no General.');
+
   console.log('--- Todas las pruebas de arbol pasaron satisfactoriamente! ---');
 })();

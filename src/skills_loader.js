@@ -147,7 +147,9 @@ async function procesarArchivoSkill(rutaSkillMd, categoria, origen, esCatalogo =
 
     const nombre = metadatos.name || nombreCarpeta;
     const descripcion = metadatos.description || 'Sin descripcion disponible.';
-    const categoriaFinal = metadatos.category || categoria || 'General';
+    const esLocal = origen === 'Propia' || (typeof origen === 'string' && origen.startsWith('Workspace'));
+    const categoriaDefecto = esLocal ? 'Local' : 'Global';
+    const categoriaFinal = metadatos.category || categoria || categoriaDefecto;
 
     const config = vscode.workspace.getConfiguration('skillsManager');
     const prefijo = config.get('mentionPrefix', '/');
@@ -160,6 +162,7 @@ async function procesarArchivoSkill(rutaSkillMd, categoria, origen, esCatalogo =
       categoria: categoriaFinal,
       origen,
       esCatalogo,
+      esLocal,
       rutaCarpeta: carpetaSkill,
       rutaSkillMd,
       comandoMencion
@@ -188,9 +191,10 @@ function esCarpetaIgnorada(nombre) {
  * Omite nombres genericos como 'skills' o 'skill'.
  * @param {string} directorioBase
  * @param {string} dirActual
+ * @param {string} [origen='']
  * @returns {string}
  */
-function determinarCategoria(directorioBase, dirActual) {
+function determinarCategoria(directorioBase, dirActual, origen = '') {
   const rel = path.relative(directorioBase, dirActual);
   const partes = rel.split(path.sep).filter(Boolean);
   const intermedias = partes.slice(0, -1);
@@ -200,7 +204,10 @@ function determinarCategoria(directorioBase, dirActual) {
   if (categoriasValidas.length > 0) {
     return categoriasValidas[categoriasValidas.length - 1];
   }
-  return 'General';
+  if (origen === 'Propia' || (typeof origen === 'string' && origen.startsWith('Workspace'))) {
+    return 'Local';
+  }
+  return 'Global';
 }
 
 /**
@@ -227,7 +234,7 @@ async function escanearDirectorio(directorioBase, origen, esCatalogo = false, pr
 
       if (tieneSkillMd) {
         const rutaSkillMd = path.join(dirActual, tieneSkillMd.name);
-        const categoria = determinarCategoria(directorioBase, dirActual);
+        const categoria = determinarCategoria(directorioBase, dirActual, origen);
         const skill = await procesarArchivoSkill(rutaSkillMd, categoria, origen, esCatalogo);
         if (skill) {
           listaSkills.push(skill);

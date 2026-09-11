@@ -529,9 +529,9 @@ async function asistenteCrearNuevaSkill(skillsExistentes = [], alFinalizarCallba
   const rutaBaseElegida = seleccionDestino.ruta;
 
   // 2. Obtener lista de categorias existentes
-  const conjuntoCategorias = new Set(['General']);
+  const conjuntoCategorias = new Set(['Global']);
   for (const s of skillsExistentes) {
-    if (s.categoria && s.categoria !== 'General') {
+    if (s.categoria && s.categoria !== 'Global' && s.categoria !== 'General') {
       conjuntoCategorias.add(s.categoria);
     }
   }

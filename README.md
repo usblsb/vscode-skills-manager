@@ -38,19 +38,19 @@ Al hacer clic en el icono de robot (**Skills IA**) en la barra lateral de VS Cod
 BARRA SUPERIOR:  [+]  [🔍]  [👁️]  [🔄]  [☁️]  [📦]  [🗂️]
 ────────────────────────────────────────────────────────
 ▼ ⭐ Favoritas (3)
-    ⭐ /setup-help
     ⭐ /domain-checker
     ⭐ /smart-commit
-▼ ⚡ Mis Habilidades (12)
-  ▶ DevOps (4)
-  ▶ Frontend (3)
-  ▶ Utilidades (5)
-▼ 🗄️ Baúl de Referencia (8)
-  ▶ Archivo-2025 (3)
-  ▶ Plantillas (5)
+    ⭐ /wrangler
+▼ ⚡ Mis Habilidades (27)
+  ▶ 🌐 Global (26)
+  ▶ 📁 Local (0)
+  ▶ 📁 toolchain (1)
+▼ 🗄️ Baúl de Referencia (28)
+  ▶ 🌐 Global (27)
+  ▶ 📁 toolchain (1)
 ▼ 🌐 Catálogo Remoto GitHub (250+)
-  ▶ AI Frameworks (45)
-  ▶ Testing (32)
+  ▶ 📁 Frameworks (45)
+  ▶ 📁 Testing (32)
 ```
 
 ### 1. La Barra Superior (Herramientas de Control)
@@ -73,23 +73,25 @@ Situada en la cabecera del panel lateral, te permite ejecutar acciones globales 
 ---
 
 ### 3. ⚡ Apartado: Mis Habilidades (En Uso / Activas)
-* **Qué contiene:** Todas las habilidades que están **actualmente activas y al alcance de tus agentes de IA**. Unifica:
-  * **Habilidades de Proyecto (Local):** Guardadas en `.agents/skills/` dentro del repositorio abierto.
-  * **Habilidades Globales:** Guardadas en `~/.agents/skills/` (y su espejo `~/.gemini/config/skills/`), disponibles para cualquier proyecto en tu máquina.
-* **Organización:** Se agrupan visualmente por **categoría temática** (obtenida del campo `category:` del archivo `SKILL.md`), manteniendo una navegación limpia aunque en disco la estructura sea plana.
-* **Acciones disponibles:**
-  * Haz clic para **copiar el comando de invocación** (`/nombre-skill`) al portapapeles.
-  * **`📄` (Ver documento):** Abre el `SKILL.md` en una pestaña dividida al lado de tu código.
-  * **`🌐` (Copiar a Global):** Si es una skill local, la promueve a global para toda tu máquina.
-  * **`📁` (Copiar a Local):** Si es una skill global, la copia a la carpeta local del proyecto abierto.
-  * **`🗄️` (Guardar en Baúl):** Envía una copia de respaldo al Baúl de Referencia.
-  * **`🗑️` (Eliminar):** Borra la habilidad activa con red de seguridad (si no está respaldada, se crea copia preventiva automática en el Baúl).
+* **Qué contiene:** Todas las habilidades que están **actualmente activas y al alcance de tus agentes de IA**.
+* **Estructura visual clara y diferenciada:**
+  * 🌐 **Global:** Habilidades globales instaladas en tu máquina (`~/.agents/skills/`, `~/.gemini/config/skills/`), listas para usar en cualquier proyecto.
+  * 📁 **Local:** Nuevo elemento que muestra las habilidades del proyecto localmente (`.agents/skills/`). Si no hay ninguna instalada en el proyecto abierto, muestra `Local (0)` y al desplegar te orienta con un mensaje para añadir una con un solo clic.
+  * 📁 **Categorías temáticas:** Agrupaciones específicas si las habilidades declaran categoría en su YAML (por ejemplo `toolchain`).
+* **Botonera unificada de acciones (en cada habilidad):**
+  Todas las habilidades cuentan con la misma botonera de acciones directas en línea:
+  * 📁 **`Copiar a Local`:** Transfiere o actualiza la habilidad en la carpeta local del proyecto (`.agents/skills`).
+  * 🌐 **`Copiar a Global`:** La promueve a universal (`~/.agents/skills` con réplica en espejo en `~/.gemini/config/skills`).
+  * ⭐ **`Marcar / Desmarcar favorita`:** Añade o retira la skill de tu lista rápida de favoritas.
+  * 📋 **`Copiar comando de mención`:** Copia el comando slash (`/nombre-skill`) listo para pegar en el chat de la IA.
+  * 📖 **`Ver documentación`:** Abre el archivo `SKILL.md` al lado de tu código en el editor.
+  * 🗑️ **`Eliminar habilidad`:** Borra la habilidad activa con red de seguridad (con respaldo preventivo automático al Baúl).
 
 ---
 
 ### 4. 🗄️ Apartado: Baúl de Referencia (Tu Carpeta de BACKUP Privada)
 
-El **Baúl de Referencia** es una de las características clave de la extensión. Es tu almacén seguro personal.
+El **Baúl de Referencia** es tu almacén seguro personal para resguardar copias maestras fuera del alcance de los agentes.
 
 #### ¿Dónde está ubicado físicamente?
 Por defecto se ubica en:
@@ -102,14 +104,8 @@ Por defecto se ubica en:
 1. **Invisibilidad para los Agentes de IA:** Los agentes escanean `.agents/` o `~/.agents/`. Si guardaras decenas de habilidades antiguas o de prueba en esas rutas, la IA consumiría tokens innecesarios leyendo descripciones que no vas a usar o se confundiría con instrucciones duplicadas. **El Baúl no es escaneado por los agentes**, manteniendo su contexto ligero y veloz.
 2. **Tu Fuente Maestra de Conocimiento:** Puedes conservar tus skills personalizadas, variantes experimentales o skills de proyectos pasados que no necesitas tener activas hoy, pero que no quieres perder.
 3. **Añadir manualmente con total libertad:** Puedes arrastrar o copiar carpetas de skills directamente a `~/.skills-backup/` desde el **Finder** de macOS o la terminal. La extensión las reconocerá en el árbol en cuanto abras VS Code o pulses `Recargar`.
-
-#### ¿Qué puedes hacer con las skills del Baúl?
-* **Crear skills directamente en el Baúl:** Al pulsar el botón **`+`** para crear una nueva habilidad, puedes seleccionar como destino el **Baúl de Referencia**. De este modo puedes diseñar y guardar una skill sin que tus agentes la lean ni la activen todavía.
-* **Respaldar todas tus skills activas en 1 clic:** Con el botón **`📦`** de la barra superior, la app copia automáticamente todas tus skills existentes (de proyecto y globales) al Baúl de Referencia.
-* **Copiar a Local (`📁`):** Transfiere la habilidad directamente a `.agents/skills/` del proyecto actual para empezar a usarla de inmediato.
-* **Copiar a Global (`🌐`):** La promueve a `~/.agents/skills/` y la replica en espejo en `~/.gemini/config/skills/`, dejándola activa en toda tu máquina.
-* **Consultar / Editar (`📄`):** Puedes abrir y leer su documentación en cualquier momento.
-* **Eliminar del Baúl (`🗑️`):** Te pedirá confirmación explícita para borrarla de forma permanente del disco.
+4. **Organización nítida:** Las habilidades de referencia se agrupan bajo **`Global`** (reemplazando el término anterior "General") y categorías temáticas.
+5. **Misma botonera completa:** Puedes Copiar a Local (`📁`), Copiar a Global (`🌐`), Marcar como favorita (`⭐`), Copiar mención (`📋`), Ver documentación (`📖`) o Eliminar permanentemente (`🗑️`).
 
 ---
 
