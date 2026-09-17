@@ -290,41 +290,29 @@ class SkillsTreeProvider {
         (s) => s.esLocal || s.origen === 'Propia' || (typeof s.origen === 'string' && s.origen.startsWith('Workspace')) || s.categoria === 'Local'
       );
 
-      // Habilidades globales que no tienen subcategoria tematica especifica
-      const skillsGlobalesDefecto = skillsGrupo.filter(
-        (s) => !skillsLocales.includes(s) && (!s.categoria || s.categoria === 'Global' || s.categoria === 'General')
+      // Todas las demás habilidades activas pertenecen estrictamente a Global
+      const skillsGlobales = skillsGrupo.filter(
+        (s) => !skillsLocales.includes(s)
       );
-
-      // Categorias tematicas adicionales (como toolchain, etc.)
-      const categoriasMap = new Map();
-      for (const skill of skillsGrupo) {
-        const cat = skill.categoria;
-        if (cat && cat !== 'Global' && cat !== 'General' && cat !== 'Local') {
-          if (!categoriasMap.has(cat)) {
-            categoriasMap.set(cat, []);
-          }
-          categoriasMap.get(cat).push(skill);
-        }
-      }
 
       const items = [];
 
-      // 1. Nodo Global
+      // 1. Nodo Global (Todas las habilidades globales del sistema)
       items.push(
         new SkillTreeItem(
-          `Global (${skillsGlobalesDefecto.length})`,
-          skillsGlobalesDefecto.length > 0
+          `Global (${skillsGlobales.length})`,
+          skillsGlobales.length > 0
             ? vscode.TreeItemCollapsibleState.Collapsed
             : vscode.TreeItemCollapsibleState.None,
           'categoria',
           {
             categoria: 'Global',
-            skills: skillsGlobalesDefecto
+            skills: skillsGlobales
           }
         )
       );
 
-      // 2. Nodo Local (Siempre visible para ver habilidades locales activas del proyecto)
+      // 2. Nodo Local (Habilidades activas en este proyecto)
       items.push(
         new SkillTreeItem(
           `Local (${skillsLocales.length})`,
@@ -336,23 +324,6 @@ class SkillsTreeProvider {
           }
         )
       );
-
-      // 3. Demas categorias tematicas ordenadas
-      const categoriasOrdenadas = Array.from(categoriasMap.keys()).sort();
-      for (const cat of categoriasOrdenadas) {
-        const listaCat = categoriasMap.get(cat);
-        items.push(
-          new SkillTreeItem(
-            `${cat} (${listaCat.length})`,
-            vscode.TreeItemCollapsibleState.Collapsed,
-            'categoria',
-            {
-              categoria: cat,
-              skills: listaCat
-            }
-          )
-        );
-      }
 
       return items;
     }
@@ -398,7 +369,10 @@ class SkillsTreeProvider {
       // Agrupar por categoria asignando Global por defecto en lugar de General
       const categoriasMap = new Map();
       for (const skill of skillsGrupo) {
-        const cat = (skill.categoria && skill.categoria !== 'General') ? skill.categoria : 'Global';
+        let cat = (skill.categoria && skill.categoria !== 'General') ? skill.categoria : 'Global';
+        if (element.tipo === 'grupoBackup') {
+          cat = (skill.esLocal || skill.categoria === 'Local') ? 'Local' : 'Global';
+        }
         if (!categoriasMap.has(cat)) {
           categoriasMap.set(cat, []);
         }

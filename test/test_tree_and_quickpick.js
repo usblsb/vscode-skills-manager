@@ -53,16 +53,16 @@ console.log('--- Iniciando pruebas de integracion de SkillsTreeProvider ---');
   await conmutarActiva('Propia:cat1:skill-2');
   const itemPropias = raiz2.find(i => i.tipo === 'grupoPropias');
   const catsSinFiltro = await provider.getChildren(itemPropias);
-  const cat1SinFiltro = catsSinFiltro.find(c => c.datosExtra && c.datosExtra.categoria === 'cat1');
-  assert.strictEqual(cat1SinFiltro.label, 'cat1 (2)', 'Debe mostrar 2 skills en cat1 cuando no se ocultan inactivas');
+  const localSinFiltro = catsSinFiltro.find(c => c.datosExtra && c.datosExtra.categoria === 'Local');
+  assert.strictEqual(localSinFiltro.label, 'Local (2)', 'Debe mostrar 2 skills en Local cuando no se ocultan inactivas');
 
   // Ahora activar ocultar inactivas
   await conmutarOcultarInactivas();
   const raiz3 = await provider.getChildren();
   const itemPropiasFiltrado = raiz3.find(i => i.tipo === 'grupoPropias');
   const catsFiltradas = await provider.getChildren(itemPropiasFiltrado);
-  const cat1Filtrada = catsFiltradas.find(c => c.datosExtra && c.datosExtra.categoria === 'cat1');
-  assert.strictEqual(cat1Filtrada.label, 'cat1 (1)', 'Debe mostrar 1 skill activa en cat1 al ocultar inactivas');
+  const localFiltrada = catsFiltradas.find(c => c.datosExtra && c.datosExtra.categoria === 'Local');
+  assert.strictEqual(localFiltrada.label, 'Local (1)', 'Debe mostrar 1 skill activa en Local al ocultar inactivas');
 
   console.log('Prueba 3 superada: filtro de habilidades inactivas aplicado correctamente en categorias.');
 
@@ -113,15 +113,13 @@ console.log('--- Iniciando pruebas de integracion de SkillsTreeProvider ---');
 
   const nodoGlobal = hijosPropias5.find(h => h.datosExtra && h.datosExtra.categoria === 'Global');
   const nodoLocal = hijosPropias5.find(h => h.datosExtra && h.datosExtra.categoria === 'Local');
-  const nodoToolchain = hijosPropias5.find(h => h.datosExtra && h.datosExtra.categoria === 'toolchain');
-
   assert.ok(nodoGlobal, 'Debe existir el nodo Global en Mis Habilidades');
-  assert.strictEqual(nodoGlobal.label, 'Global (1)');
+  assert.strictEqual(nodoGlobal.label, 'Global (2)');
   assert.ok(nodoLocal, 'Debe existir el nodo Local en Mis Habilidades');
   assert.strictEqual(nodoLocal.label, 'Local (0)');
-  assert.ok(nodoToolchain, 'Debe existir el nodo toolchain en Mis Habilidades');
-  assert.strictEqual(nodoToolchain.label, 'toolchain (1)');
-  console.log('Prueba 6 superada: desglose Global, Local y toolchain en Mis Habilidades.');
+  const nodoToolchain = hijosPropias5.find(h => h.datosExtra && h.datosExtra.categoria === 'toolchain');
+  assert.strictEqual(nodoToolchain, undefined, 'No deben existir categorias fragmentadas como toolchain en Mis Habilidades');
+  console.log('Prueba 6 superada: agrupacion estricta y limpia bajo Global y Local en Mis Habilidades.');
 
   // 7. Prueba de nodo Local vacio con mensaje orientativo
   const hijosLocalVacio = await provider.getChildren(nodoLocal);

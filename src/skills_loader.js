@@ -200,8 +200,9 @@ async function procesarArchivoSkill(rutaSkillMd, categoria, origen, esCatalogo =
 function esCarpetaIgnorada(nombre) {
   const nombreMin = nombre.toLowerCase();
   if (nombreMin.includes('backup')) return true;
-  if (nombreMin === 'node_modules' || nombreMin === '.git' || nombreMin === 'dist' || nombreMin === 'release') return true;
+  if (['node_modules', '.git', 'dist', 'release', 'synced', 'cache', 'plugins', 'marketplaces'].includes(nombreMin)) return true;
   if (nombreMin.startsWith('.') && !['.agent', '.agents', '.gemini', '.claude'].includes(nombreMin)) return true;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i.test(nombreMin)) return true;
   return false;
 }
 

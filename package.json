@@ -2,7 +2,7 @@
   "name": "vscode-skills-manager",
   "displayName": "Gestor de Skills IA",
   "description": "Explora, gestiona, crea, sincroniza y usa Agent Skills en VS Code y Cursor.",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "icon": "media/icon.png",
   "publisher": "usblsb",
   "engines": {
