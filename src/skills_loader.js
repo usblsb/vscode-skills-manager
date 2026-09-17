@@ -1,6 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const { obtenerAgentesActivos, obtenerAgentesConSkill } = require('./agent_registry');
 let vscode;
 try {
   vscode = require('vscode');
@@ -65,6 +66,24 @@ function resolverRutaGlobal() {
   const config = vscode.workspace.getConfiguration('skillsManager');
   const rutaConfig = config.get('globalSkillsPath', '~/.agents/skills');
   return expandirTilde(rutaConfig || '~/.agents/skills');
+}
+
+/**
+ * Obtiene la ruta absoluta de las skills para Claude Code en el proyecto.
+ * @returns {string}
+ */
+function resolverRutaClaude() {
+  const config = vscode.workspace.getConfiguration('skillsManager');
+  const rutaConfig = config.get('claudeSkillsPath', '.claude/skills');
+  return resolverRuta(rutaConfig, '.claude/skills');
+}
+
+/**
+ * Obtiene la ruta absoluta de las skills globales de Claude Code.
+ * @returns {string}
+ */
+function resolverRutaClaudeGlobal() {
+  return expandirTilde('~/.claude/skills');
 }
 
 /**
@@ -302,7 +321,11 @@ async function cargarTodasLasSkills() {
     // La carpeta aun no existe
   }
 
-  // 2. Cargar Skills Globales de la maquina (universal y especificas de IDEs)
+  // 2. Cargar Skills Globales de la maquina (universal, agentes activos y especificas de IDEs)
+  const agentesConfig = config.get('agentesActivos', ['auto']);
+  const agentesActivos = obtenerAgentesActivos(agentesConfig);
+  const rutasAgentes = agentesActivos.map((a) => a.rutaGlobal);
+
   const carpetasGlobalesConfig = config.get('globalSearchFolders', [
     '~/.agents/skills',
     '~/.gemini/config/skills',
@@ -310,7 +333,7 @@ async function cargarTodasLasSkills() {
     '~/.cursor/skills'
   ]);
   const listaRutasGlobales = Array.from(
-    new Set([rutaGlobal, ...carpetasGlobalesConfig])
+    new Set([rutaGlobal, ...rutasAgentes, ...carpetasGlobalesConfig])
   ).map((r) => expandirTilde(r));
 
   const rutasGlobalesEscaneadas = new Set();
@@ -379,11 +402,18 @@ async function cargarTodasLasSkills() {
     // La carpeta de backup aun no existe
   }
 
-  // Lista combinada unica para el buscador rapido QuickPick
+  // Lista combinada unica para el buscador rapido QuickPick y enriquecimiento de agentes
+  const todasColecciones = [...skillsPropias, ...skillsGlobales, ...skillsWorkspace, ...skillsCatalogo, ...skillsBackup];
+  for (const s of todasColecciones) {
+    if (!s.agentes) {
+      s.agentes = obtenerAgentesConSkill(s.id, agentesActivos).map((a) => a.nombre);
+    }
+  }
+
   const mapaUnico = new Map();
   const todas = [];
 
-  for (const s of [...skillsPropias, ...skillsGlobales, ...skillsWorkspace, ...skillsCatalogo, ...skillsBackup]) {
+  for (const s of todasColecciones) {
     if (!mapaUnico.has(s.id)) {
       mapaUnico.set(s.id, s);
       todas.push(s);
@@ -404,6 +434,8 @@ module.exports = {
   cargarTodasLasSkills,
   resolverRutaPropia,
   resolverRutaGlobal,
+  resolverRutaClaude,
+  resolverRutaClaudeGlobal,
   resolverRutaRemota,
   resolverRutaBackup,
   extraerFrontmatter,

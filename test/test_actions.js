@@ -44,10 +44,11 @@ console.log('--- Iniciando pruebas de skills_actions ---');
 
   // 4. Prueba de rutas globales en espejo
   const rutasEspejo = obtenerRutasGlobalesEspejo();
-  assert.ok(rutasEspejo.length >= 2, 'Deben existir al menos 2 rutas espejo (.agents y .gemini)');
+  assert.ok(rutasEspejo.length >= 3, 'Deben existir al menos 3 rutas espejo (.agents, .gemini y .claude)');
   assert.ok(rutasEspejo.some(r => r.includes('.agents')), 'Debe incluir ruta universal .agents/skills');
   assert.ok(rutasEspejo.some(r => r.includes('.gemini')), 'Debe incluir ruta gemini config/skills');
-  console.log('Prueba 4 superada: resolucion de rutas globales espejo universal y gemini.');
+  assert.ok(rutasEspejo.some(r => r.includes('.claude')), 'Debe incluir ruta claude skills');
+  console.log('Prueba 4 superada: resolucion de rutas globales espejo universal, gemini y claude.');
 
   // 5. Prueba de copiarSkillABackup
   const { copiarSkillABackup, eliminarSkill } = require('../src/skills_actions');
@@ -112,6 +113,72 @@ console.log('--- Iniciando pruebas de skills_actions ---');
   });
   assert.strictEqual(callbackEjecutado, true, 'El callback de respaldarTodasLasSkillsEnBackup debe ejecutarse');
   console.log('Prueba 7 superada: respaldarTodasLasSkillsEnBackup ejecuta el respaldo de todas las skills activas.');
+
+  // 8. Prueba de copiarSkillAClaude y resolucion de ruta Claude
+  const { resolverRutaPropia, resolverRutaClaude } = require('../src/skills_loader');
+  const { copiarSkillAClaude } = require('../src/skills_actions');
+  const rutaClaude = resolverRutaClaude();
+  assert.ok(rutaClaude.includes('.claude'), 'Ruta Claude debe apuntar a carpeta .claude/skills');
+
+  const dirTempSkillClaude = await fs.mkdtemp(path.join(os.tmpdir(), 'skill-claude-test-'));
+  const carpetaSkillClaude = path.join(dirTempSkillClaude, 'skill-para-claude');
+  await fs.mkdir(carpetaSkillClaude, { recursive: true });
+  await fs.writeFile(path.join(carpetaSkillClaude, 'SKILL.md'), '---\nname: skill-para-claude\n---\n# Claude Skill\n', 'utf8');
+
+  const objSkillClaude = {
+    nombre: 'skill-para-claude',
+    rutaCarpeta: carpetaSkillClaude,
+    origen: 'Propia'
+  };
+
+  let callbackClaudeLlamado = false;
+  await copiarSkillAClaude(objSkillClaude, () => {
+    callbackClaudeLlamado = true;
+  });
+  assert.strictEqual(callbackClaudeLlamado, true, 'El callback de copiarSkillAClaude debe ejecutarse');
+
+  const rutaDestinoClaude = path.join(rutaClaude, 'skill-para-claude');
+  const statsClaude = await fs.stat(path.join(rutaDestinoClaude, 'SKILL.md'));
+  assert.ok(statsClaude.isFile(), 'El archivo SKILL.md debe existir en .claude/skills');
+
+  // Limpieza del test
+  await fs.rm(rutaDestinoClaude, { recursive: true, force: true });
+  await fs.rm(path.join(resolverRutaPropia(), 'skill-para-claude'), { recursive: true, force: true });
+  await fs.rm(dirTempSkillClaude, { recursive: true, force: true });
+  console.log('Prueba 8 superada: copiarSkillAClaude copia correctamente a .claude/skills.');
+
+  // 9. Prueba de replica automatica en espejo local (.claude/skills) al copiar a local
+  const { obtenerRutasLocalesEspejo, copiarSkillALocal } = require('../src/skills_actions');
+  const rutasLocalesEspejo = obtenerRutasLocalesEspejo();
+  assert.ok(rutasLocalesEspejo.length >= 2, 'Deben existir al menos 2 rutas espejo locales (.agents y .claude)');
+  assert.ok(rutasLocalesEspejo.some(r => r.includes('.agents')), 'Debe incluir ruta universal local .agents/skills');
+  assert.ok(rutasLocalesEspejo.some(r => r.includes('.claude')), 'Debe incluir ruta claude local .claude/skills');
+
+  const dirTempSkillAuto = await fs.mkdtemp(path.join(os.tmpdir(), 'skill-auto-test-'));
+  const carpetaSkillAuto = path.join(dirTempSkillAuto, 'skill-auto-espejo');
+  await fs.mkdir(carpetaSkillAuto, { recursive: true });
+  await fs.writeFile(path.join(carpetaSkillAuto, 'SKILL.md'), '---\nname: skill-auto-espejo\n---\n# Auto Espejo\n', 'utf8');
+
+  const objSkillAuto = {
+    nombre: 'skill-auto-espejo',
+    rutaCarpeta: carpetaSkillAuto,
+    origen: 'Catalogo'
+  };
+
+  await copiarSkillALocal(objSkillAuto);
+  const rutaDestinoAgents = path.join(resolverRutaPropia(), 'skill-auto-espejo');
+  const rutaDestinoClaudeAuto = path.join(resolverRutaClaude(), 'skill-auto-espejo');
+
+  const statsAgents = await fs.stat(path.join(rutaDestinoAgents, 'SKILL.md'));
+  const statsClaudeAuto = await fs.stat(path.join(rutaDestinoClaudeAuto, 'SKILL.md'));
+  assert.ok(statsAgents.isFile(), 'El archivo SKILL.md debe existir en .agents/skills');
+  assert.ok(statsClaudeAuto.isFile(), 'El archivo SKILL.md debe haberse replicado automaticamente en .claude/skills');
+
+  // Limpieza
+  await fs.rm(rutaDestinoAgents, { recursive: true, force: true });
+  await fs.rm(rutaDestinoClaudeAuto, { recursive: true, force: true });
+  await fs.rm(dirTempSkillAuto, { recursive: true, force: true });
+  console.log('Prueba 9 superada: replica automatica en espejo local (.agents <-> .claude) verificada.');
 
   console.log('--- Todas las pruebas de skills_actions pasaron satisfactoriamente! ---');
 })();

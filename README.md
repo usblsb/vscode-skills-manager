@@ -24,9 +24,10 @@ Las **Agent Skills** son paquetes modulares de instrucciones y procedimientos al
 A medida que acumulas habilidades, gestionarlas a mano genera fricción: no sabes en qué carpeta residen, temes borrarlas por accidente o duplicarlas y saturar el contexto de la IA. **Gestor de Skills IA** centraliza todo el ciclo de vida de tus habilidades:
 * 🗄️ **Baúl de Referencia (BACKUP):** Tu almacén privado para guardar copias maestras fuera del radar de los agentes.
 * 🛡️ **Borrado Seguro Anti-Pérdida:** Respaldo automático preventivo antes de eliminar cualquier habilidad activa.
-* 🔄 **Transferencias Bidireccionales:** Mueve o copia habilidades en un clic entre Local, Global y Baúl.
+* 🤖 **Soporte Multi-Agente (+60 Agentes):** Detección automática y despliegue rápido a Claude Code, Antigravity, Windsurf, Continue, OpenHands, Devin, Goose, Roo, Cursor y más de 60 herramientas.
+* 🔄 **Transferencias y Despliegue Directo:** Mueve, copia o enlaza habilidades en un clic entre Local, Global, Baúl y agentes específicos.
 * 🔍 **Buscador Rápido:** Encuentra y copia comandos slash (`/nombre-skill`) al vuelo con `Cmd+Shift+K`.
-* 🌐 **Soporte Multi-IDE con Espejo:** Sincronización automática entre estándares universales (`~/.agents`) y Google Antigravity (`~/.gemini`).
+* 🌐 **Soporte Multi-IDE con Espejo:** Sincronización automática entre estándares universales (`~/.agents`), Google Antigravity (`~/.gemini`) y Claude Code (`~/.claude`).
 
 ---
 
@@ -82,6 +83,7 @@ Situada en la cabecera del panel lateral, te permite ejecutar acciones globales 
   Todas las habilidades cuentan con la misma botonera de acciones directas en línea:
   * 📁 **`Copiar a Local`:** Transfiere o actualiza la habilidad en la carpeta local del proyecto (`.agents/skills`).
   * 🌐 **`Copiar a Global`:** La promueve a universal (`~/.agents/skills` con réplica en espejo en `~/.gemini/config/skills`).
+  * 🤖 **`Desplegar en Agente...`:** Despliega o enlaza simbólicamente la habilidad hacia cualquiera de los agentes de IA detectados en tu máquina.
   * ⭐ **`Marcar / Desmarcar favorita`:** Añade o retira la skill de tu lista rápida de favoritas.
   * 📋 **`Copiar comando de mención`:** Copia el comando slash (`/nombre-skill`) listo para pegar en el chat de la IA.
   * 📖 **`Ver documentación`:** Abre el archivo `SKILL.md` al lado de tu código en el editor.
@@ -201,6 +203,95 @@ Para que **no tengas que preocuparte por qué herramienta estás usando**:
 
 ---
 
+## 🤖 Soporte Multi-Agente (+60 Agentes y Herramientas de IA)
+
+La extensión incorpora un **catálogo declarativo con más de 60 agentes y asistentes de IA**, reconociendo de forma nativa sus ubicaciones estándar de habilidades.
+
+### Auto-Detección Inteligente de Agentes
+Para garantizar un rendimiento instantáneo y no saturar tu espacio de trabajo con herramientas que no utilizas:
+1. **Detección en disco:** La extensión verifica qué agentes están instalados en tu máquina (detectando la presencia de sus carpetas base en `~`).
+2. **Sin sobrecarga:** Si solo usas Claude Code, Antigravity y Windsurf, solo esos se muestran como destinos activos de despliegue.
+3. **Control total:** Puedes forzar qué agentes monitorizar mediante el ajuste `skillsManager.agentesActivos`.
+
+### Despliegue en un Clic y Enlaces Simbólicos (`symlinks`)
+* **Comando `Desplegar en Agente...`:** Al hacer clic derecho en cualquier habilidad (Local, Global o Baúl), pulsa **Desplegar en Agente...** para abrir un selector múltiple (`QuickPick`). Puedes marcar uno o varios agentes destino simultáneamente.
+* **Soporte de Symlinks (`skillsManager.usarEnlacesSimbolicos`):** Si activas este ajuste, la extensión crea enlaces simbólicos (`ln -s`) en lugar de duplicar carpetas. De este modo, cualquier edición en la habilidad se refleja al instante en todos los agentes sin ocupar espacio adicional en disco.
+
+### Catálogo Completo de Agentes y Rutas Soportadas
+
+| Agente / App | Identificador (`id`) | Carpeta Global de Skills |
+| :--- | :--- | :--- |
+| **Universal (Amp / Estándar)** | `universal` | `~/.agents/skills` |
+| **Antigravity / Gemini CLI** | `gemini` | `~/.gemini/config/skills` |
+| **Claude Code** | `claude` | `~/.claude/skills` |
+| **Windsurf (Codeium)** | `windsurf` | `~/.codeium/windsurf/skills` |
+| **Cursor** | `cursor` | `~/.cursor/skills` |
+| **Continue** | `continue` | `~/.continue/skills` |
+| **OpenHands** | `openhands` | `~/.openhands/skills` |
+| **Devin for Terminal** | `devin` | `~/.config/devin/skills` |
+| **Goose** | `goose` | `~/.config/goose/skills` |
+| **Crush** | `crush` | `~/.config/crush/skills` |
+| **Moltbot** | `moltbot` | `~/.moltbot/skills` |
+| **AiderDesk** | `aiderdesk` | `~/.aider-desk/skills` |
+| **AstrBot** | `astrbot` | `~/.astrbot/data/skills` |
+| **Autohand Code CLI** | `autohand` | `~/.autohand/skills` |
+| **Augment** | `augment` | `~/.augment/skills` |
+| **IBM Bob** | `bob` | `~/.bob/skills` |
+| **CodeArts Agent** | `codearts` | `~/.codeartsdoer/skills` |
+| **CodeBuddy** | `codebuddy` | `~/.codebuddy/skills` |
+| **Codemaker** | `codemaker` | `~/.codemaker/skills` |
+| **Code Studio** | `codestudio` | `~/.codestudio/skills` |
+| **Command Code** | `commandcode` | `~/.commandcode/skills` |
+| **Cortex Code (Snowflake)** | `cortex` | `~/.snowflake/cortex/skills` |
+| **ForgeCode** | `forge` | `~/.forge/skills` |
+| **fx** | `fx` | `~/.fx/skills` |
+| **Grok Build** | `grok` | `~/.grok/skills` |
+| **Hermes Agent** | `hermes` | `~/.hermes/skills` |
+| **inference.sh** | `inferencesh` | `~/.inferencesh/skills` |
+| **Jazz** | `jazz` | `~/.jazz/skills` |
+| **Junie** | `junie` | `~/.junie/skills` |
+| **iFlow CLI** | `iflow` | `~/.iflow/skills` |
+| **Kimchi** | `kimchi` | `~/.config/kimchi/harness/skills` |
+| **Kiro CLI** | `kiro` | `~/.kiro/skills` |
+| **Kode** | `kode` | `~/.kode/skills` |
+| **Lingma** | `lingma` | `~/.lingma/skills` |
+| **MCPJam** | `mcpjam` | `~/.mcpjam/skills` |
+| **MiniMax Code** | `minimax` | `~/.minimax/skills` |
+| **Mistral Vibe** | `vibe` | `~/.vibe/skills` |
+| **Moxby** | `moxby` | `~/.moxby/skills` |
+| **Mux** | `mux` | `~/.mux/skills` |
+| **Ona** | `ona` | `~/.ona/skills` |
+| **Pi Agent** | `pi` | `~/.pi/agent/skills` |
+| **Posit Assistant** | `posit` | `~/.posit/assistant/skills` |
+| **Qoder** | `qoder` | `~/.qoder/skills` |
+| **Qoder CN** | `qoder_cn` | `~/.qoder-cn/skills` |
+| **Qwen Code** | `qwen` | `~/.qwen/skills` |
+| **Reasonix** | `reasonix` | `~/.reasonix/skills` |
+| **Rovo Dev** | `rovodev` | `~/.rovodev/skills` |
+| **Roo Code** | `roo` | `~/.roo/skills` |
+| **Tabnine CLI** | `tabnine` | `~/.tabnine/agent/skills` |
+| **Terramind** | `terramind` | `~/.terramind/skills` |
+| **Tinycloud** | `tinycloud` | `~/.tinycloud/skills` |
+| **Trae CN** | `trae_cn` | `~/.trae-cn/skills` |
+| **ZCode** | `zcode` | `~/.zcode/skills` |
+| **Zencoder** | `zencoder` | `~/.zencoder/skills` |
+| **Neovate** | `neovate` | `~/.neovate/skills` |
+| **Pochi** | `pochi` | `~/.pochi/skills` |
+| **AdaL** | `adal` | `~/.adal/skills` |
+| **Cline** | `cline` | `~/.cline/skills` |
+| **Codex** | `codex` | `~/.codex/skills` |
+| **Droid** | `droid` | `~/.droid/skills` |
+| **GitHub Copilot** | `copilot` | `~/.copilot/skills` |
+| **Kilo Code** | `kilo` | `~/.kilo/skills` |
+| **Kimi Code CLI** | `kimi` | `~/.kimi/skills` |
+| **OpenCode** | `opencode` | `~/.opencode/skills` |
+| **OpenClaw** | `openclaw` | `~/.openclaw/skills` |
+| **Warp** | `warp` | `~/.warp/skills` |
+| **Zed** | `zed` | `~/.config/zed/skills` |
+| **Zenflow** | `zenflow` | `~/.zenflow/skills` |
+
+---
+
 ## Cómo Invocar una Skill en el Chat
 
 Una vez que una skill está en **Mis Habilidades** (Local o Global), puedes utilizarla en el chat de tu asistente:
@@ -232,6 +323,7 @@ Una vez que una skill está en **Mis Habilidades** (Local o Global), puedes util
 | `skills-manager.instalarSkill` | — | — | Instala una habilidad del catálogo (en Local o en Global). |
 | `skills-manager.copiarALocal` | — | — | Copia una habilidad (del Baúl o Global) al proyecto local (`.agents/skills`). |
 | `skills-manager.copiarAGlobal` | — | — | Copia una habilidad (del Baúl o Local) a Global universal (`~/.agents/skills` + espejo). |
+| `skills-manager.desplegarEnAgente` | — | — | Despliega una habilidad hacia uno o varios agentes de IA detectados en el sistema. |
 | `skills-manager.copiarABackup` | — | — | Guarda una copia de respaldo de la skill en el Baúl (`~/.skills-backup`). |
 | `skills-manager.respaldarTodo` | — | — | Respalda todas las habilidades activas (locales y globales) en el Baúl. |
 | `skills-manager.consolidarGlobales` | — | — | Sincroniza en espejo las skills globales entre todos los IDEs. |
@@ -264,6 +356,14 @@ Puedes personalizar todas las rutas y comportamientos en la configuración de VS
 
   // Carpeta privada baul de referencia y copias de seguridad
   "skillsManager.backupSkillsPath": "~/.skills-backup",
+
+  // Agentes activos para la extension (por defecto ['auto'] detecta automaticamente los instalados)
+  "skillsManager.agentesActivos": [
+    "auto"
+  ],
+
+  // Si esta activo, al desplegar crea enlaces simbolicos (symlinks) en vez de duplicar archivos
+  "skillsManager.usarEnlacesSimbolicos": false,
 
   // Lista de carpetas globales que la extension escanea en tu maquina
   "skillsManager.globalSearchFolders": [

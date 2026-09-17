@@ -27,10 +27,12 @@ const {
   cargarTodasLasSkills,
   resolverRutaPropia,
   resolverRutaGlobal,
+  resolverRutaClaude,
   resolverRutaBackup,
   expandirTilde,
   escanearDirectorio
 } = require('./skills_loader');
+const { obtenerAgentesActivos } = require('./agent_registry');
 
 /**
  * Normaliza el nombre para que sea seguro en carpetas y menciones.
@@ -68,15 +70,34 @@ async function copiarCarpetaRecursiva(origen, destino) {
 
 /**
  * Obtiene las carpetas globales principales para mantener en espejo:
- * ~/.agents/skills (Universal) y ~/.gemini/config/skills (Antigravity).
+ * ~/.agents/skills (Universal), ~/.gemini/config/skills (Antigravity) y ~/.claude/skills (Claude Code).
  * @returns {Array<string>}
  */
 function obtenerRutasGlobalesEspejo() {
   const rutaUniversal = resolverRutaGlobal();
   const rutaGemini = expandirTilde('~/.gemini/config/skills');
+  const rutaClaude = expandirTilde('~/.claude/skills');
   const rutas = [rutaUniversal];
-  if (path.resolve(rutaUniversal) !== path.resolve(rutaGemini)) {
+  if (!rutas.some(r => path.resolve(r) === path.resolve(rutaGemini))) {
     rutas.push(rutaGemini);
+  }
+  if (!rutas.some(r => path.resolve(r) === path.resolve(rutaClaude))) {
+    rutas.push(rutaClaude);
+  }
+  return rutas;
+}
+
+/**
+ * Obtiene las carpetas locales del workspace para mantener en espejo:
+ * .agents/skills (Universal) y .claude/skills (Claude Code).
+ * @returns {Array<string>}
+ */
+function obtenerRutasLocalesEspejo() {
+  const rutaPropia = resolverRutaPropia();
+  const rutaClaude = resolverRutaClaude();
+  const rutas = [rutaPropia];
+  if (path.resolve(rutaPropia) !== path.resolve(rutaClaude)) {
+    rutas.push(rutaClaude);
   }
   return rutas;
 }
@@ -100,13 +121,21 @@ async function instalarSkillDesdeCatalogo(skill, alFinalizarCallback) {
   let etiquetaDestino = 'el proyecto';
 
   if (workspaceFolders && workspaceFolders.length > 0) {
+    const rutaBaseClaude = resolverRutaClaude();
     const opciones = [
       {
-        label: '$(folder) En este proyecto (Workspace)',
+        label: '$(folder) En este proyecto (Universal: .agents/skills)',
         description: rutaBasePropias,
         detail: 'Disponible para este proyecto (.agents/skills)',
         ruta: rutaBasePropias,
         etiqueta: 'el proyecto'
+      },
+      {
+        label: '$(hubot) En Claude Code de este proyecto (.claude/skills)',
+        description: rutaBaseClaude,
+        detail: 'Disponible para Claude Code (.claude/skills)',
+        ruta: rutaBaseClaude,
+        etiqueta: 'Claude Code local'
       },
       {
         label: '$(globe) Global (Universal para Cursor, Antigravity y Claude)',
@@ -159,7 +188,7 @@ async function instalarSkillDesdeCatalogo(skill, alFinalizarCallback) {
 
     await copiarCarpetaRecursiva(skill.rutaCarpeta, rutaDestino);
 
-    // Replicar en espejo en las demas carpetas globales (ej: ~/.gemini/config/skills)
+    // Replicar en espejo en las demas carpetas globales o locales
     if (etiquetaDestino === 'modo global') {
       const rutasEspejo = obtenerRutasGlobalesEspejo();
       for (const dirGlobal of rutasEspejo) {
@@ -169,6 +198,18 @@ async function instalarSkillDesdeCatalogo(skill, alFinalizarCallback) {
             await copiarCarpetaRecursiva(skill.rutaCarpeta, espejoDestino);
           } catch (e) {
             console.warn('Aviso: No se pudo replicar en espejo global:', e);
+          }
+        }
+      }
+    } else {
+      const rutasEspejoLocales = obtenerRutasLocalesEspejo();
+      for (const dirLocal of rutasEspejoLocales) {
+        const espejoDestino = path.join(dirLocal, nombreCarpetaSkill);
+        if (path.resolve(espejoDestino) !== path.resolve(rutaDestino)) {
+          try {
+            await copiarCarpetaRecursiva(skill.rutaCarpeta, espejoDestino);
+          } catch (e) {
+            console.warn('Aviso: No se pudo replicar en espejo local:', e);
           }
         }
       }
@@ -227,7 +268,21 @@ async function copiarSkillALocal(skill, alFinalizarCallback) {
     }
 
     await copiarCarpetaRecursiva(skill.rutaCarpeta, destino);
-    vscode.window.showInformationMessage(`Habilidad "${skill.nombre}" copiada a Local (.agents/skills).`);
+
+    // Replicar en espejo local (.claude/skills) para que Claude Code siempre disponga de la habilidad
+    const rutasEspejoLocales = obtenerRutasLocalesEspejo();
+    for (const dirLocal of rutasEspejoLocales) {
+      const espejoDestino = path.join(dirLocal, nombreCarpeta);
+      if (path.resolve(espejoDestino) !== path.resolve(destino)) {
+        try {
+          await copiarCarpetaRecursiva(skill.rutaCarpeta, espejoDestino);
+        } catch (e) {
+          console.warn('Aviso: No se pudo replicar en espejo local:', e);
+        }
+      }
+    }
+
+    vscode.window.showInformationMessage(`Habilidad "${skill.nombre}" copiada a Local (.agents/skills y .claude/skills).`);
 
     if (typeof alFinalizarCallback === 'function') {
       alFinalizarCallback();
@@ -235,6 +290,73 @@ async function copiarSkillALocal(skill, alFinalizarCallback) {
   } catch (error) {
     vscode.window.showErrorMessage(`Error al copiar habilidad a Local: ${error.message}`);
     console.error('Error al copiar a Local:', error);
+  }
+}
+
+/**
+ * Copia una habilidad a la carpeta de Claude Code del proyecto (.claude/skills).
+ * @param {object} skill
+ * @param {Function} [alFinalizarCallback]
+ */
+async function copiarSkillAClaude(skill, alFinalizarCallback) {
+  if (!skill || !skill.rutaCarpeta) {
+    vscode.window.showErrorMessage('No se ha podido identificar la carpeta de la habilidad a copiar.');
+    return;
+  }
+
+  const rutaBaseClaude = resolverRutaClaude();
+  const nombreCarpeta = path.basename(skill.rutaCarpeta);
+  const destino = path.join(rutaBaseClaude, nombreCarpeta);
+
+  if (path.resolve(destino) === path.resolve(skill.rutaCarpeta)) {
+    vscode.window.showInformationMessage(`La habilidad "${skill.nombre}" ya está en la carpeta de Claude Code (.claude/skills).`);
+    return;
+  }
+
+  try {
+    let existe = false;
+    try {
+      await fs.stat(destino);
+      existe = true;
+    } catch (e) {
+      existe = false;
+    }
+
+    if (existe) {
+      const confirmacion = await vscode.window.showWarningMessage(
+        `Ya existe una habilidad llamada "${nombreCarpeta}" en Claude Code (.claude/skills). ¿Deseas sobreescribirla?`,
+        { modal: true },
+        'Sobreescribir',
+        'Cancelar'
+      );
+      if (confirmacion !== 'Sobreescribir') {
+        return;
+      }
+    }
+
+    await copiarCarpetaRecursiva(skill.rutaCarpeta, destino);
+
+    // Replicar en espejo local (.agents/skills) para compatibilidad universal
+    const rutasEspejoLocales = obtenerRutasLocalesEspejo();
+    for (const dirLocal of rutasEspejoLocales) {
+      const espejoDestino = path.join(dirLocal, nombreCarpeta);
+      if (path.resolve(espejoDestino) !== path.resolve(destino)) {
+        try {
+          await copiarCarpetaRecursiva(skill.rutaCarpeta, espejoDestino);
+        } catch (e) {
+          console.warn('Aviso: No se pudo replicar en espejo local:', e);
+        }
+      }
+    }
+
+    vscode.window.showInformationMessage(`Habilidad "${skill.nombre}" copiada a Claude Code (.claude/skills y .agents/skills).`);
+
+    if (typeof alFinalizarCallback === 'function') {
+      alFinalizarCallback();
+    }
+  } catch (error) {
+    vscode.window.showErrorMessage(`Error al copiar habilidad a Claude Code: ${error.message}`);
+    console.error('Error al copiar a Claude Code:', error);
   }
 }
 
@@ -303,6 +425,103 @@ async function copiarSkillAGlobal(skill, alFinalizarCallback) {
   } catch (error) {
     vscode.window.showErrorMessage(`Error al copiar habilidad a Global: ${error.message}`);
     console.error('Error al copiar a Global:', error);
+  }
+}
+
+/**
+ * Despliega una habilidad hacia uno o varios agentes de IA detectados en el sistema.
+ * Permite seleccionar multiples agentes o uno solo via QuickPick.
+ * @param {object} skill
+ * @param {Function} [alFinalizarCallback]
+ */
+async function desplegarSkillEnAgente(skill, alFinalizarCallback) {
+  if (!skill || !skill.rutaCarpeta) {
+    vscode.window.showErrorMessage('No se ha podido identificar la habilidad a desplegar.');
+    return;
+  }
+
+  const config = vscode.workspace.getConfiguration('skillsManager');
+  const agentesConfig = config.get('agentesActivos', ['auto']);
+  const usarSymlinks = config.get('usarEnlacesSimbolicos', false);
+  const agentesActivos = obtenerAgentesActivos(agentesConfig);
+
+  if (!agentesActivos || agentesActivos.length === 0) {
+    vscode.window.showWarningMessage('No se detectaron agentes de IA activos en el sistema.');
+    return;
+  }
+
+  const nombreCarpeta = path.basename(skill.rutaCarpeta);
+
+  // Construir opciones con indicador de presencia previa
+  const opciones = agentesActivos.map((agente) => {
+    const rutaBaseSkills = expandirTilde(agente.rutaGlobal);
+    const rutaHabilidadEnAgente = path.join(rutaBaseSkills, nombreCarpeta);
+    let yaExiste = false;
+    try {
+      yaExiste = require('fs').existsSync(rutaHabilidadEnAgente);
+    } catch (e) {
+      yaExiste = false;
+    }
+
+    return {
+      label: `$(${agente.icono || 'hubot'}) ${agente.nombre}`,
+      description: agente.rutaGlobal,
+      detail: yaExiste ? '✓ Ya desplegada en este agente (se actualizará)' : 'Disponible para desplegar',
+      agente
+    };
+  });
+
+  const seleccion = await vscode.window.showQuickPick(opciones, {
+    placeHolder: `Selecciona los agentes donde desplegar "${skill.nombre}":`,
+    canPickMany: true
+  });
+
+  if (!seleccion || seleccion.length === 0) {
+    return;
+  }
+
+  let desplegadas = 0;
+  const nombresDesplegados = [];
+
+  for (const item of seleccion) {
+    const agente = item.agente;
+    const rutaBaseSkills = expandirTilde(agente.rutaGlobal);
+    const rutaDestino = path.join(rutaBaseSkills, nombreCarpeta);
+
+    try {
+      await fs.mkdir(rutaBaseSkills, { recursive: true });
+
+      if (path.resolve(rutaDestino) === path.resolve(skill.rutaCarpeta)) {
+        continue;
+      }
+
+      if (usarSymlinks) {
+        try {
+          await fs.rm(rutaDestino, { recursive: true, force: true });
+        } catch (e) {
+          // Ignorar si no existia previamente
+        }
+        await fs.symlink(skill.rutaCarpeta, rutaDestino, 'dir');
+      } else {
+        await copiarCarpetaRecursiva(skill.rutaCarpeta, rutaDestino);
+      }
+
+      desplegadas++;
+      nombresDesplegados.push(agente.nombre);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Error al desplegar en ${agente.nombre}: ${error.message}`);
+    }
+  }
+
+  if (desplegadas > 0) {
+    const modoTexto = usarSymlinks ? 'enlazada simbólicamente' : 'copiada';
+    vscode.window.showInformationMessage(
+      `Habilidad "${skill.nombre}" ${modoTexto} con éxito en: ${nombresDesplegados.join(', ')}.`
+    );
+  }
+
+  if (typeof alFinalizarCallback === 'function') {
+    alFinalizarCallback();
   }
 }
 
@@ -497,12 +716,20 @@ async function asistenteCrearNuevaSkill(skillsExistentes = [], alFinalizarCallba
   // 1. Seleccionar destino (Proyecto, Global o Baul de Referencia)
   const opcionesDestino = [];
 
+  const rutaBaseClaude = resolverRutaClaude();
+
   if (workspaceFolders && workspaceFolders.length > 0) {
     opcionesDestino.push({
-      label: '$(folder) En este proyecto (Workspace)',
+      label: '$(folder) En este proyecto (Universal: .agents/skills)',
       description: rutaBasePropias,
-      detail: 'Solo disponible para este proyecto (.agents/skills)',
+      detail: 'Disponible para este proyecto (.agents/skills)',
       ruta: rutaBasePropias
+    });
+    opcionesDestino.push({
+      label: '$(hubot) En Claude Code de este proyecto (.claude/skills)',
+      description: rutaBaseClaude,
+      detail: 'Disponible para Claude Code (.claude/skills)',
+      ruta: rutaBaseClaude
     });
   }
 
@@ -633,6 +860,21 @@ async function asistenteCrearNuevaSkill(skillsExistentes = [], alFinalizarCallba
           }
         }
       }
+    } else {
+      // Replicar en espejo si el destino es local de workspace (.agents/skills <-> .claude/skills)
+      const rutasEspejoLocales = obtenerRutasLocalesEspejo();
+      if (rutasEspejoLocales.some(r => path.resolve(r) === path.resolve(rutaBaseElegida))) {
+        for (const dirLocal of rutasEspejoLocales) {
+          const espejoDestino = path.join(dirLocal, nombreSkill);
+          if (path.resolve(espejoDestino) !== path.resolve(carpetaNuevaSkill)) {
+            try {
+              await copiarCarpetaRecursiva(carpetaNuevaSkill, espejoDestino);
+            } catch (e) {
+              console.warn('Aviso: No se pudo replicar en espejo local:', e);
+            }
+          }
+        }
+      }
     }
 
     // 6. Abrir inmediatamente el archivo en el editor
@@ -662,6 +904,10 @@ async function asistenteCrearNuevaSkill(skillsExistentes = [], alFinalizarCallba
  */
 async function consolidarSkillsGlobales(alFinalizarCallback) {
   const config = vscode.workspace.getConfiguration('skillsManager');
+  const agentesConfig = config.get('agentesActivos', ['auto']);
+  const agentesActivos = obtenerAgentesActivos(agentesConfig);
+  const rutasAgentes = agentesActivos.map((a) => a.rutaGlobal);
+
   const carpetasGlobales = config.get('globalSearchFolders', [
     '~/.agents/skills',
     '~/.gemini/config/skills',
@@ -669,7 +915,7 @@ async function consolidarSkillsGlobales(alFinalizarCallback) {
     '~/.cursor/skills'
   ]);
 
-  const rutasGlobales = carpetasGlobales.map((r) => expandirTilde(r));
+  const rutasGlobales = Array.from(new Set([...carpetasGlobales, ...rutasAgentes])).map((r) => expandirTilde(r));
   const rutasEspejo = obtenerRutasGlobalesEspejo();
 
   let totalSincronizadas = 0;
@@ -719,6 +965,9 @@ async function consolidarSkillsGlobales(alFinalizarCallback) {
       }
     }
 
+    // Sincronizar tambien el espejo local si hay proyecto abierto
+    await sincronizarSkillsLocales();
+
     vscode.window.showInformationMessage(
       `Consolidación completada: ${mapaSkills.size} habilidades globales verificadas (${totalSincronizadas} sincronizaciones en espejo).`
     );
@@ -729,6 +978,70 @@ async function consolidarSkillsGlobales(alFinalizarCallback) {
   } catch (error) {
     vscode.window.showErrorMessage(`Error al consolidar habilidades globales: ${error.message}`);
     console.error('Error al consolidar globales:', error);
+  }
+}
+
+/**
+ * Sincroniza las habilidades locales entre .agents/skills y .claude/skills
+ * para asegurar que Claude Code reconozca todas las skills de proyecto existentes.
+ * @param {Function} [alFinalizarCallback]
+ * @returns {Promise<number>}
+ */
+async function sincronizarSkillsLocales(alFinalizarCallback) {
+  const rutasEspejo = obtenerRutasLocalesEspejo();
+  if (rutasEspejo.length < 2) return 0;
+
+  let totalSincronizadas = 0;
+
+  try {
+    const mapaSkills = new Map();
+    for (const dir of rutasEspejo) {
+      try {
+        const stats = await fs.stat(dir);
+        if (!stats.isDirectory()) continue;
+        const skills = await escanearDirectorio(dir, 'Local', false);
+        for (const s of skills) {
+          if (!mapaSkills.has(s.nombre)) {
+            mapaSkills.set(s.nombre, s);
+          }
+        }
+      } catch (e) {
+        // Carpeta aun no existe
+      }
+    }
+
+    for (const [nombre, skill] of mapaSkills.entries()) {
+      for (const destinoBase of rutasEspejo) {
+        const rutaFinal = path.join(destinoBase, nombre);
+        const archivoFinal = path.join(rutaFinal, 'SKILL.md');
+        let existe = false;
+        try {
+          await fs.stat(archivoFinal);
+          existe = true;
+        } catch (e) {
+          existe = false;
+        }
+
+        if (!existe) {
+          await copiarCarpetaRecursiva(skill.rutaCarpeta, rutaFinal);
+          totalSincronizadas++;
+        }
+      }
+    }
+
+    if (totalSincronizadas > 0) {
+      vscode.window.showInformationMessage(
+        `Sincronización local completada: ${totalSincronizadas} habilidades sincronizadas en .claude/skills para Claude Code.`
+      );
+    }
+
+    if (typeof alFinalizarCallback === 'function') {
+      alFinalizarCallback();
+    }
+    return totalSincronizadas;
+  } catch (error) {
+    console.error('Error al sincronizar skills locales:', error);
+    return 0;
   }
 }
 
@@ -808,11 +1121,15 @@ module.exports = {
   eliminarSkill,
   asistenteCrearNuevaSkill,
   consolidarSkillsGlobales,
+  sincronizarSkillsLocales,
   copiarSkillALocal,
+  copiarSkillAClaude,
   copiarSkillAGlobal,
+  desplegarSkillEnAgente,
   copiarSkillABackup,
   respaldarTodasLasSkillsEnBackup,
   obtenerRutasGlobalesEspejo,
+  obtenerRutasLocalesEspejo,
   sanitizarNombre,
   _setVscode
 };

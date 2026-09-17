@@ -15,7 +15,9 @@ const {
   asistenteCrearNuevaSkill,
   consolidarSkillsGlobales,
   copiarSkillALocal,
+  copiarSkillAClaude,
   copiarSkillAGlobal,
+  desplegarSkillEnAgente,
   copiarSkillABackup,
   respaldarTodasLasSkillsEnBackup
 } = require('./src/skills_actions');
@@ -148,6 +150,16 @@ function activate(context) {
     await copiarSkillALocal(skill, () => treeProvider.recargar());
   });
 
+  // Comando: Copiar habilidad a Claude Code (.claude/skills)
+  const copiarAClaudeCmd = vscode.commands.registerCommand('skills-manager.copiarAClaude', async (elemento) => {
+    const skill = obtenerObjetoSkill(elemento);
+    if (!skill) {
+      vscode.window.showErrorMessage('No se ha podido identificar la habilidad a copiar a Claude Code.');
+      return;
+    }
+    await copiarSkillAClaude(skill, () => treeProvider.recargar());
+  });
+
   // 12. Comando: Copiar habilidad a Global (Universal)
   const copiarAGlobalCmd = vscode.commands.registerCommand('skills-manager.copiarAGlobal', async (elemento) => {
     const skill = obtenerObjetoSkill(elemento);
@@ -156,6 +168,16 @@ function activate(context) {
       return;
     }
     await copiarSkillAGlobal(skill, () => treeProvider.recargar());
+  });
+
+  // Comando: Desplegar habilidad hacia uno o varios agentes de IA
+  const desplegarEnAgenteCmd = vscode.commands.registerCommand('skills-manager.desplegarEnAgente', async (elemento) => {
+    const skill = obtenerObjetoSkill(elemento);
+    if (!skill) {
+      vscode.window.showErrorMessage('No se ha podido identificar la habilidad a desplegar.');
+      return;
+    }
+    await desplegarSkillEnAgente(skill, () => treeProvider.recargar());
   });
 
   // 13. Comando: Guardar copia en el Baul de Referencia
@@ -253,7 +275,9 @@ function activate(context) {
     eliminarSkillCmd,
     consolidarGlobalesCmd,
     copiarALocalCmd,
+    copiarAClaudeCmd,
     copiarAGlobalCmd,
+    desplegarEnAgenteCmd,
     copiarABackupCmd,
     respaldarTodoCmd,
     conmutarFavoritaCmd,

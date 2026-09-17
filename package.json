@@ -1,8 +1,8 @@
 {
   "name": "vscode-skills-manager",
   "displayName": "Gestor de Skills IA",
-  "description": "Explora, gestiona, crea y sincroniza habilidades (/skills) para agentes de IA con catálogo y favoritas",
-  "version": "1.3.2",
+  "description": "Explora, gestiona, crea, sincroniza y usa Agent Skills en VS Code y Cursor.",
+  "version": "1.4.0",
   "icon": "media/icon.png",
   "publisher": "usblsb",
   "engines": {
@@ -143,10 +143,22 @@
         "icon": "$(folder)"
       },
       {
+        "command": "skills-manager.copiarAClaude",
+        "title": "Copiar a Claude Code (.claude/skills)",
+        "category": "Skills IA",
+        "icon": "$(hubot)"
+      },
+      {
         "command": "skills-manager.copiarAGlobal",
         "title": "Copiar a Global (Universal)",
         "category": "Skills IA",
         "icon": "$(globe)"
+      },
+      {
+        "command": "skills-manager.desplegarEnAgente",
+        "title": "Desplegar en Agente...",
+        "category": "Skills IA",
+        "icon": "$(hubot)"
       },
       {
         "command": "skills-manager.copiarABackup",
@@ -258,9 +270,19 @@
           "group": "0_transfer@1"
         },
         {
+          "command": "skills-manager.copiarAClaude",
+          "when": "view == skills-manager-tree && (viewItem =~ /^skillItem_backup/ || viewItem =~ /^skillItem_global/ || viewItem =~ /^skillItem_propia/ || viewItem =~ /^skillItem_workspace/)",
+          "group": "0_transfer@1.5"
+        },
+        {
           "command": "skills-manager.copiarAGlobal",
           "when": "view == skills-manager-tree && (viewItem =~ /^skillItem_backup/ || viewItem =~ /^skillItem_propia/ || viewItem =~ /^skillItem_workspace/ || viewItem =~ /^skillItem_global/)",
           "group": "0_transfer@2"
+        },
+        {
+          "command": "skills-manager.desplegarEnAgente",
+          "when": "view == skills-manager-tree && (viewItem =~ /^skillItem_backup/ || viewItem =~ /^skillItem_propia/ || viewItem =~ /^skillItem_workspace/ || viewItem =~ /^skillItem_global/)",
+          "group": "0_transfer@2.5"
         },
         {
           "command": "skills-manager.copiarABackup",
@@ -296,6 +318,11 @@
           "type": "string",
           "default": ".agents/skills",
           "description": "Carpeta donde se guardan tus habilidades de proyecto (relativa al proyecto o ruta absoluta)."
+        },
+        "skillsManager.claudeSkillsPath": {
+          "type": "string",
+          "default": ".claude/skills",
+          "description": "Carpeta donde se guardan las habilidades para Claude Code en el proyecto (por defecto '.claude/skills')."
         },
         "skillsManager.globalSkillsPath": {
           "type": "string",
@@ -347,13 +374,28 @@
           "type": "string",
           "default": "/",
           "description": "Prefijo utilizado al copiar el comando de la skill (por defecto '/' para Slash Command)."
+        },
+        "skillsManager.agentesActivos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "auto"
+          ],
+          "description": "Lista de agentes de IA activos para la extensión. Por defecto ['auto'] detecta automáticamente las herramientas instaladas en tu sistema."
+        },
+        "skillsManager.usarEnlacesSimbolicos": {
+          "type": "boolean",
+          "default": false,
+          "description": "Si está activo, al desplegar habilidades en otros agentes se crearán enlaces simbólicos (symlinks) en lugar de duplicar archivos."
         }
       }
     }
   },
   "scripts": {
     "lint": "node -e 'console.log(\"Sintaxis OK\")'",
-    "test": "node test/test_loader.js && node test/test_state.js && node test/test_tree_and_quickpick.js && node test/test_actions.js",
+    "test": "node test/test_loader.js && node test/test_state.js && node test/test_tree_and_quickpick.js && node test/test_actions.js && node test/test_agent_registry.js",
     "package": "node scripts/package.js"
   },
   "devDependencies": {
